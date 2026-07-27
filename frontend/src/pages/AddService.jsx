@@ -1,0 +1,1601 @@
+﻿import { useState, useEffect } from "react";
+import { useNavigate, useLocation } from "react-router-dom";
+import FarmerSearchSelect from "../components/farmers/FarmerSearchSelect";
+import FarmerForm from "../components/farmers/FarmerForm";
+import { addService } from "../api/serviceApi";
+import { addPayment } from "../api/paymentApi";
+import { getSettings, updateSettings } from "../api/settingsApi";
+import { buildServiceMessage } from "../utils/messageTemplates";
+import SendMessageButtons from "../components/common/SendMessageButtons";
+import { useAuth } from "../hooks/useAuth";
+import { CROPS, SERVICE_TYPES } from "../constants/serviceOptions";
+
+function Field({ label, hint, children }) {
+  return (
+    <div>
+      <label className="block text-xs font-semibold text-[#5B6B5E] uppercase tracking-wide mb-1.5">
+        {label}
+      </label>
+
+      {children}
+
+      {hint && (
+        <p className="text-[11px] text-[#8A968C] mt-1.5">
+          {hint}
+        </p>
+      )}
+    </div>
+  );
+}
+
+const inputClass =
+  "w-full bg-[#F6F2E9] border border-black/[0.06] rounded-xl px-3.5 py-2.5 text-sm text-[#1F2A22] placeholder-[#A3AFA5] focus:outline-none focus:ring-2 focus:ring-[#4C9A5A]/30 focus:border-[#4C9A5A]/40 transition-all";
+
+const getTodayLocal = () => {
+  const d = new Date();
+
+  const year = d.getFullYear();
+
+  const month = String(
+    d.getMonth() + 1
+  ).padStart(2, "0");
+
+  const day = String(
+    d.getDate()
+  ).padStart(2, "0");
+
+  return `${year}-${month}-${day}`;
+};
+
+export default function AddService() {
+  const { user } = useAuth();
+
+  const isAdmin =
+    user?.role === "admin";
+
+  const navigate =
+    useNavigate();
+
+  const location =
+    useLocation();
+
+  const passedFarmer =
+    location.state?.farmer || null;
+
+  const [farmer, setFarmer] =
+    useState(passedFarmer);
+
+  const [mode, setMode] =
+    useState("search");
+
+  const [village, setVillage] =
+    useState("");
+
+  const [cropName, setCropName] =
+    useState("");
+
+  const [cropOther, setCropOther] =
+    useState("");
+
+  const [serviceType, setServiceType] =
+    useState("");
+
+  const [
+    serviceTypeOther,
+    setServiceTypeOther,
+  ] = useState("");
+
+  const [plotR, setPlotR] =
+    useState("");
+
+  const [acres, setAcres] =
+    useState("");
+
+  const [
+    areaInputSource,
+    setAreaInputSource,
+  ] = useState("R");
+
+  const [
+    serviceDate,
+    setServiceDate,
+  ] = useState(getTodayLocal());
+
+  const [billNo, setBillNo] =
+    useState("");
+
+  const [plotName, setPlotName] =
+    useState("");
+
+  const [
+    ratePerAcre,
+    setRatePerAcre,
+  ] = useState(0);
+
+  const [
+    editingRate,
+    setEditingRate,
+  ] = useState(false);
+
+  const [newRate, setNewRate] =
+    useState("");
+
+  const [
+    totalBill,
+    setTotalBill,
+  ] = useState("");
+
+  const [
+    paymentMode,
+    setPaymentMode,
+  ] = useState("Cash");
+
+  const [notes, setNotes] =
+    useState("");
+
+  const [
+    billImageFile,
+    setBillImageFile,
+  ] = useState(null);
+
+  const [billPaid, setBillPaid] =
+    useState(false);
+
+  const [
+    amountPaid,
+    setAmountPaid,
+  ] = useState("");
+
+  // NEW: Discount is No by default
+  const [
+    applyDiscount,
+    setApplyDiscount,
+  ] = useState(false);
+
+  const [
+    discountAmount,
+    setDiscountAmount,
+  ] = useState("");
+
+  const [
+    discountReason,
+    setDiscountReason,
+  ] = useState("");
+
+  const [error, setError] =
+    useState(null);
+
+  const [loading, setLoading] =
+    useState(false);
+
+  const [
+    savedService,
+    setSavedService,
+  ] = useState(null);
+
+  // ---------------------------------------
+  // LIVE PAYMENT / DISCOUNT CALCULATION
+  // ---------------------------------------
+
+  const currentBill =
+    Number(totalBill) || 0;
+
+  const enteredPayment =
+    billPaid
+      ? Number(amountPaid) || 0
+      : 0;
+
+  const enteredDiscount =
+    billPaid && applyDiscount
+      ? Number(discountAmount) || 0
+      : 0;
+
+  const adjustedPending =
+    Math.max(
+      currentBill -
+        enteredPayment -
+        enteredDiscount,
+      0
+    );
+
+  const exceedsBill =
+    enteredPayment +
+      enteredDiscount >
+    currentBill;
+
+  // ---------------------------------------
+  // SETTINGS
+  // ---------------------------------------
+
+  useEffect(() => {
+    getSettings()
+      .then(({ data }) =>
+        setRatePerAcre(
+          data.ratePerAcre
+        )
+      )
+      .catch(() =>
+        setRatePerAcre(0)
+      );
+  }, []);
+
+  // ---------------------------------------
+  // FARMER VILLAGE
+  // ---------------------------------------
+
+  useEffect(() => {
+    if (farmer?.village) {
+      setVillage(
+        farmer.village
+      );
+    } else {
+      setVillage("");
+    }
+  }, [farmer]);
+
+  // ---------------------------------------
+  // AREA CALCULATION
+  // ---------------------------------------
+
+  const handleRChange = (val) => {
+    setAreaInputSource("R");
+
+    setPlotR(val);
+
+    if (val === "") {
+      setAcres("");
+      return;
+    }
+
+    const numericR =
+      Number(val);
+
+    if (
+      !Number.isFinite(
+        numericR
+      )
+    ) {
+      return;
+    }
+
+    setAcres(
+      (
+        numericR / 40
+      ).toFixed(2)
+    );
+  };
+
+  const handleAcresChange = (
+    val
+  ) => {
+    setAreaInputSource(
+      "ACRES"
+    );
+
+    setAcres(val);
+
+    if (val === "") {
+      setPlotR("");
+      return;
+    }
+
+    const numericAcres =
+      Number(val);
+
+    if (
+      !Number.isFinite(
+        numericAcres
+      )
+    ) {
+      return;
+    }
+
+    setPlotR(
+      (
+        numericAcres * 40
+      ).toFixed(2)
+    );
+  };
+
+  // ---------------------------------------
+  // TOTAL BILL AUTO CALCULATION
+  // ---------------------------------------
+
+  useEffect(() => {
+    const numericRate =
+      Number(ratePerAcre);
+
+    if (
+      !Number.isFinite(
+        numericRate
+      ) ||
+      numericRate <= 0
+    ) {
+      setTotalBill("");
+      return;
+    }
+
+    let exactAcres = 0;
+
+    if (
+      areaInputSource ===
+        "R" &&
+      plotR !== ""
+    ) {
+      const numericR =
+        Number(plotR);
+
+      if (
+        Number.isFinite(
+          numericR
+        )
+      ) {
+        exactAcres =
+          numericR / 40;
+      }
+    }
+
+    if (
+      areaInputSource ===
+        "ACRES" &&
+      acres !== ""
+    ) {
+      const numericAcres =
+        Number(acres);
+
+      if (
+        Number.isFinite(
+          numericAcres
+        )
+      ) {
+        exactAcres =
+          numericAcres;
+      }
+    }
+
+    if (
+      !Number.isFinite(
+        exactAcres
+      ) ||
+      exactAcres <= 0
+    ) {
+      setTotalBill("");
+      return;
+    }
+
+    const exactBill =
+      exactAcres *
+      numericRate;
+
+    const finalBill =
+      Math.round(
+        (
+          exactBill +
+          Number.EPSILON
+        ) *
+          100
+      ) / 100;
+
+    setTotalBill(
+      String(finalBill)
+    );
+  }, [
+    plotR,
+    acres,
+    ratePerAcre,
+    areaInputSource,
+  ]);
+
+  // ---------------------------------------
+  // SAVE RATE
+  // ---------------------------------------
+
+  const handleSaveRate =
+    async () => {
+      if (!newRate) return;
+
+      try {
+        const { data } =
+          await updateSettings({
+            ratePerAcre:
+              Number(newRate),
+          });
+
+        setRatePerAcre(
+          data.ratePerAcre
+        );
+
+        setEditingRate(false);
+
+        setNewRate("");
+      } catch (err) {
+        setError(
+          "Failed to update rate"
+        );
+      }
+    };
+
+  // ---------------------------------------
+  // NEW FARMER
+  // ---------------------------------------
+
+  const handleNewFarmerRegistered =
+    (newFarmer) => {
+      setFarmer(newFarmer);
+
+      setMode("search");
+    };
+
+  // ---------------------------------------
+  // SUBMIT
+  // ---------------------------------------
+
+  const handleSubmit =
+    async (e) => {
+      e.preventDefault();
+
+      setError(null);
+
+      if (!farmer) {
+        return setError(
+          "Please select or register a farmer first"
+        );
+      }
+
+      if (!village) {
+        return setError(
+          "Selected farmer has no village on file — update their profile first"
+        );
+      }
+
+      if (!billNo.trim()) {
+        return setError(
+          "Bill No. is required"
+        );
+      }
+
+      if (
+        !cropName ||
+        (cropName === "Other" &&
+          !cropOther)
+      ) {
+        return setError(
+          "Please select or enter a crop name"
+        );
+      }
+
+      if (
+        !serviceType ||
+        (serviceType ===
+          "Other" &&
+          !serviceTypeOther)
+      ) {
+        return setError(
+          "Please select or enter a service type"
+        );
+      }
+
+      if (!acres) {
+        return setError(
+          "Please enter plot size"
+        );
+      }
+
+      if (!totalBill) {
+        return setError(
+          "Total bill is required"
+        );
+      }
+
+      if (billPaid) {
+        if (
+          !amountPaid ||
+          Number(
+            amountPaid
+          ) <= 0
+        ) {
+          return setError(
+            "Enter the amount paid"
+          );
+        }
+
+        if (
+          Number(
+            amountPaid
+          ) >
+          Number(totalBill)
+        ) {
+          return setError(
+            "Amount paid cannot exceed total bill"
+          );
+        }
+      }
+
+      if (
+        billPaid &&
+        applyDiscount
+      ) {
+        if (
+          !discountAmount ||
+          Number(
+            discountAmount
+          ) <= 0
+        ) {
+          return setError(
+            "Enter a valid discount amount"
+          );
+        }
+
+        if (
+          Number(
+            amountPaid
+          ) +
+            Number(
+              discountAmount
+            ) >
+          Number(totalBill)
+        ) {
+          return setError(
+            "Payment and discount together cannot exceed total bill"
+          );
+        }
+      }
+
+      setLoading(true);
+
+      try {
+        const fd =
+          new FormData();
+
+        fd.append(
+          "farmer",
+          farmer._id
+        );
+
+        fd.append(
+          "village",
+          village
+        );
+
+        fd.append(
+          "billNo",
+          billNo.trim()
+        );
+
+        fd.append(
+          "cropName",
+          cropName === "Other"
+            ? cropOther
+            : cropName
+        );
+
+        fd.append(
+          "serviceType",
+          serviceType ===
+            "Other"
+            ? serviceTypeOther
+            : serviceType
+        );
+
+        fd.append(
+          "kshetra",
+          `${plotR} R`
+        );
+
+        fd.append(
+          "acres",
+          acres
+        );
+
+        fd.append(
+          "plotName",
+          plotName
+        );
+
+        fd.append(
+          "ratePerAcre",
+          ratePerAcre
+        );
+
+        fd.append(
+          "totalBill",
+          totalBill
+        );
+
+        fd.append(
+          "paymentMode",
+          paymentMode
+        );
+
+        fd.append(
+          "notes",
+          notes
+        );
+
+        fd.append(
+          "serviceDate",
+          serviceDate
+        );
+
+        if (billImageFile) {
+          fd.append(
+            "billImage",
+            billImageFile
+          );
+        }
+
+        // First create service
+        const { data } =
+          await addService(fd);
+
+        const newService =
+          data.service;
+
+        // Then record initial payment
+        // and optional discount
+        if (
+          billPaid &&
+          Number(
+            amountPaid
+          ) > 0
+        ) {
+          const paymentResponse =
+            await addPayment({
+              serviceRecordId:
+                newService._id,
+
+              amount:
+                Number(
+                  amountPaid
+                ),
+
+              mode:
+                paymentMode,
+
+              note:
+                "Recorded at time of service entry",
+
+              applyDiscount,
+
+              discountAmount:
+                applyDiscount
+                  ? Number(
+                      discountAmount
+                    )
+                  : 0,
+
+              discountReason:
+                applyDiscount
+                  ? discountReason
+                  : "",
+            });
+
+          const updatedService =
+            paymentResponse
+              .data
+              ?.service ||
+            newService;
+
+          setSavedService(
+            updatedService
+          );
+
+          return;
+        }
+
+        setSavedService(
+          newService
+        );
+      } catch (err) {
+        setError(
+          err.response
+            ?.data
+            ?.message ||
+            "Failed to add service"
+        );
+      } finally {
+        setLoading(false);
+      }
+    };
+
+  return (
+    <div className="min-h-screen bg-[#F6F2E9] pb-24 font-sans selection:bg-[#4C9A5A]/20">
+      {/* HEADER */}
+
+      <div
+        className="relative px-6 pt-10 pb-16 overflow-hidden rounded-b-[2.5rem] shadow-sm"
+        style={{
+          backgroundImage:
+            "linear-gradient(180deg, #1F3D2B 0%, #234730 60%, #2B5439 100%)",
+        }}
+      >
+        <div
+          className="absolute inset-0 opacity-[0.05] pointer-events-none mix-blend-overlay"
+          style={{
+            backgroundImage:
+              "repeating-linear-gradient(115deg, #ffffff 0px, #ffffff 1px, transparent 1px, transparent 14px)",
+          }}
+        />
+
+        <div className="relative">
+          <p className="text-xs text-[#B9D9BE] font-medium tracking-wide uppercase mb-1">
+            New Entry
+          </p>
+
+          <h1 className="text-xl font-bold text-white tracking-tight">
+            Add Spraying
+            Service
+          </h1>
+        </div>
+      </div>
+
+      <div className="px-5 -mt-8 relative z-10 max-w-2xl mx-auto space-y-4">
+
+        {/* FARMER */}
+
+        <div className="bg-white rounded-[1.5rem] shadow-sm border border-black/[0.04] p-4">
+          {!farmer && (
+            <div className="flex gap-2 mb-3 bg-[#F6F2E9] rounded-xl p-1">
+              <button
+                type="button"
+                onClick={() =>
+                  setMode(
+                    "search"
+                  )
+                }
+                className={`flex-1 py-2 rounded-lg text-sm font-semibold transition-all ${
+                  mode ===
+                  "search"
+                    ? "bg-[#2B5439] text-white shadow-sm"
+                    : "text-[#5B6B5E]"
+                }`}
+              >
+                Existing Farmer
+              </button>
+
+              <button
+                type="button"
+                onClick={() =>
+                  setMode(
+                    "new"
+                  )
+                }
+                className={`flex-1 py-2 rounded-lg text-sm font-semibold transition-all ${
+                  mode ===
+                  "new"
+                    ? "bg-[#2B5439] text-white shadow-sm"
+                    : "text-[#5B6B5E]"
+                }`}
+              >
+                New Farmer
+              </button>
+            </div>
+          )}
+
+          {mode === "search" ||
+          farmer ? (
+            <FarmerSearchSelect
+              onSelect={
+                setFarmer
+              }
+              selectedFarmer={
+                farmer
+              }
+            />
+          ) : (
+            <FarmerForm
+              onSuccess={
+                handleNewFarmerRegistered
+              }
+              onCancel={() =>
+                setMode(
+                  "search"
+                )
+              }
+            />
+          )}
+        </div>
+
+        {farmer &&
+          !savedService && (
+            <form
+              onSubmit={
+                handleSubmit
+              }
+              autoComplete="off"
+              className="space-y-4"
+            >
+
+              {/* LOCATION */}
+
+              <div className="bg-white rounded-[1.5rem] shadow-sm border border-black/[0.04] p-5 space-y-4">
+                <h2 className="text-sm font-bold text-[#1F2A22]">
+                  Location & Crop
+                </h2>
+
+                <Field
+                  label="Village"
+                  hint="From this farmer's registered profile"
+                >
+                  <div
+                    className={`${inputClass} font-semibold cursor-not-allowed`}
+                  >
+                    {village ||
+                      "No village on file"}
+                  </div>
+                </Field>
+
+                <Field label="Crop Name">
+                  <select
+                    value={
+                      cropName
+                    }
+                    onChange={(
+                      e
+                    ) =>
+                      setCropName(
+                        e.target
+                          .value
+                      )
+                    }
+                    className={
+                      inputClass
+                    }
+                  >
+                    <option value="">
+                      Select crop
+                    </option>
+
+                    {CROPS.map(
+                      (c) => (
+                        <option
+                          key={
+                            c
+                          }
+                          value={
+                            c
+                          }
+                        >
+                          {c}
+                        </option>
+                      )
+                    )}
+                  </select>
+
+                  {cropName ===
+                    "Other" && (
+                    <input
+                      value={
+                        cropOther
+                      }
+                      onChange={(
+                        e
+                      ) =>
+                        setCropOther(
+                          e
+                            .target
+                            .value
+                        )
+                      }
+                      placeholder="Type crop name"
+                      className={`${inputClass} mt-2`}
+                    />
+                  )}
+                </Field>
+
+                <Field label="Plot Name (optional)">
+                  <input
+                    value={
+                      plotName
+                    }
+                    onChange={(
+                      e
+                    ) =>
+                      setPlotName(
+                        e.target
+                          .value
+                      )
+                    }
+                    className={
+                      inputClass
+                    }
+                  />
+                </Field>
+              </div>
+
+              {/* PLOT */}
+
+              <div className="bg-white rounded-[1.5rem] shadow-sm border border-black/[0.04] p-5 space-y-4">
+                <h2 className="text-sm font-bold text-[#1F2A22]">
+                  Plot Size &
+                  Date
+                </h2>
+
+                <div className="bg-[#F6F2E9] rounded-xl p-3.5">
+                  <div className="grid grid-cols-2 gap-3">
+                    <Field label="In R (Guntha)">
+                      <input
+                        type="number"
+                        inputMode="decimal"
+                        value={
+                          plotR
+                        }
+                        onChange={(
+                          e
+                        ) =>
+                          handleRChange(
+                            e
+                              .target
+                              .value
+                          )
+                        }
+                        className="w-full bg-white border border-black/[0.06] rounded-xl px-3.5 py-2.5 text-sm"
+                      />
+                    </Field>
+
+                    <Field label="In Acres">
+                      <input
+                        type="number"
+                        inputMode="decimal"
+                        step="0.01"
+                        value={
+                          acres
+                        }
+                        onChange={(
+                          e
+                        ) =>
+                          handleAcresChange(
+                            e
+                              .target
+                              .value
+                          )
+                        }
+                        className="w-full bg-white border border-black/[0.06] rounded-xl px-3.5 py-2.5 text-sm"
+                      />
+                    </Field>
+                  </div>
+
+                  <p className="text-[11px] text-[#8A968C] mt-2">
+                    40 R = 1 Acre
+                    — enter either
+                    field
+                  </p>
+                </div>
+
+                <Field label="Service Date">
+                  <input
+                    type="date"
+                    value={
+                      serviceDate
+                    }
+                    onChange={(
+                      e
+                    ) =>
+                      setServiceDate(
+                        e.target
+                          .value
+                      )
+                    }
+                    className={
+                      inputClass
+                    }
+                  />
+                </Field>
+              </div>
+
+              {/* SERVICE DETAILS */}
+
+              <div className="bg-white rounded-[1.5rem] shadow-sm border border-black/[0.04] p-5 space-y-4">
+                <h2 className="text-sm font-bold text-[#1F2A22]">
+                  Service Details
+                </h2>
+
+                <Field label="Bill No.">
+                  <input
+                    type="text"
+                    value={
+                      billNo
+                    }
+                    onChange={(
+                      e
+                    ) =>
+                      setBillNo(
+                        e.target
+                          .value
+                      )
+                    }
+                    placeholder="Enter bill number"
+                    required
+                    className={
+                      inputClass
+                    }
+                  />
+                </Field>
+
+                <Field label="Service Type">
+                  <select
+                    value={
+                      serviceType
+                    }
+                    onChange={(
+                      e
+                    ) =>
+                      setServiceType(
+                        e.target
+                          .value
+                      )
+                    }
+                    className={
+                      inputClass
+                    }
+                  >
+                    <option value="">
+                      Select service
+                      type
+                    </option>
+
+                    {SERVICE_TYPES.map(
+                      (s) => (
+                        <option
+                          key={
+                            s
+                          }
+                          value={
+                            s
+                          }
+                        >
+                          {s}
+                        </option>
+                      )
+                    )}
+                  </select>
+
+                  {serviceType ===
+                    "Other" && (
+                    <input
+                      value={
+                        serviceTypeOther
+                      }
+                      onChange={(
+                        e
+                      ) =>
+                        setServiceTypeOther(
+                          e
+                            .target
+                            .value
+                        )
+                      }
+                      placeholder="Type service type"
+                      className={`${inputClass} mt-2`}
+                    />
+                  )}
+                </Field>
+
+                {/* RATE */}
+
+                <div className="bg-[#F6F2E9] rounded-xl p-3.5">
+                  <div className="flex justify-between items-center">
+                    <span className="text-xs font-semibold text-[#5B6B5E] uppercase tracking-wide">
+                      Rate / Acre
+                    </span>
+
+                    {isAdmin &&
+                      !editingRate && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setEditingRate(
+                              true
+                            );
+
+                            setNewRate(
+                              ratePerAcre
+                            );
+                          }}
+                          className="text-[11px] font-bold text-[#4C9A5A] bg-[#E9F3E9] px-2.5 py-1 rounded-lg"
+                        >
+                          Edit rate
+                        </button>
+                      )}
+                  </div>
+
+                  {!editingRate ? (
+                    <p className="text-xl font-bold text-[#1F2A22] mt-1">
+                      ₹
+                      {
+                        ratePerAcre
+                      }
+
+                      <span className="text-sm font-medium text-[#8A968C]">
+                        {" "}
+                        /acre
+                      </span>
+                    </p>
+                  ) : (
+                    <div className="flex gap-2 mt-2">
+                      <input
+                        type="number"
+                        value={
+                          newRate
+                        }
+                        onChange={(
+                          e
+                        ) =>
+                          setNewRate(
+                            e
+                              .target
+                              .value
+                          )
+                        }
+                        className="flex-1 bg-white border rounded-xl px-3.5 py-2 text-sm"
+                      />
+
+                      <button
+                        type="button"
+                        onClick={
+                          handleSaveRate
+                        }
+                        className="bg-[#2B5439] text-white rounded-xl px-4 text-sm font-semibold"
+                      >
+                        Save
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setEditingRate(
+                            false
+                          )
+                        }
+                        className="bg-white border rounded-xl px-4 text-sm font-semibold"
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  )}
+                </div>
+
+                <Field
+                  label="Total Bill"
+                  hint="Auto-calculated from exact plot area × rate — edit if needed"
+                >
+                  <input
+                    type="number"
+                    inputMode="decimal"
+                    value={
+                      totalBill
+                    }
+                    onChange={(
+                      e
+                    ) =>
+                      setTotalBill(
+                        e.target
+                          .value
+                      )
+                    }
+                    className={
+                      inputClass
+                    }
+                  />
+                </Field>
+              </div>
+
+              {/* PAYMENT */}
+
+              <div className="bg-white rounded-[1.5rem] shadow-sm border border-black/[0.04] p-5 space-y-4">
+                <h2 className="text-sm font-bold text-[#1F2A22]">
+                  Payment
+                </h2>
+
+                <div className="bg-[#F6F2E9] rounded-xl p-3.5">
+                  <span className="text-xs font-semibold text-[#5B6B5E] uppercase tracking-wide">
+                    Bill Paid?
+                  </span>
+
+                  <div className="flex gap-2 mt-2">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setBillPaid(
+                          false
+                        );
+
+                        setAmountPaid(
+                          ""
+                        );
+
+                        setApplyDiscount(
+                          false
+                        );
+
+                        setDiscountAmount(
+                          ""
+                        );
+
+                        setDiscountReason(
+                          ""
+                        );
+                      }}
+                      className={`flex-1 py-2.5 rounded-xl text-sm font-semibold ${
+                        !billPaid
+                          ? "bg-[#C24949] text-white"
+                          : "bg-white text-[#5B6B5E]"
+                      }`}
+                    >
+                      No
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setBillPaid(
+                          true
+                        )
+                      }
+                      className={`flex-1 py-2.5 rounded-xl text-sm font-semibold ${
+                        billPaid
+                          ? "bg-[#4C9A5A] text-white"
+                          : "bg-white text-[#5B6B5E]"
+                      }`}
+                    >
+                      Yes
+                    </button>
+                  </div>
+
+                  {billPaid && (
+                    <div className="mt-4 space-y-4">
+
+                      {/* PAYMENT AMOUNT FIRST */}
+
+                      <Field label="Amount Paid">
+                        <input
+                          type="number"
+                          inputMode="decimal"
+                          value={
+                            amountPaid
+                          }
+                          onChange={(
+                            e
+                          ) =>
+                            setAmountPaid(
+                              e
+                                .target
+                                .value
+                            )
+                          }
+                          max={
+                            totalBill ||
+                            undefined
+                          }
+                          placeholder={
+                            totalBill
+                              ? `Up to ₹${totalBill}`
+                              : ""
+                          }
+                          className="w-full bg-white border border-black/[0.06] rounded-xl px-3.5 py-2.5 text-sm"
+                        />
+                      </Field>
+
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setAmountPaid(
+                            totalBill
+                          )
+                        }
+                        className="text-[11px] font-bold text-[#4C9A5A]"
+                      >
+                        Full amount
+                        (₹
+                        {totalBill ||
+                          0}
+                        )
+                      </button>
+
+                      {/* LIVE PENDING */}
+
+                      <div className="bg-white border border-black/[0.06] rounded-xl p-3.5 flex justify-between items-center">
+                        <div>
+                          <p className="text-[10px] font-bold text-[#5B6B5E] uppercase">
+                            Bill Amount
+                          </p>
+
+                          <p className="font-bold text-[#1F2A22]">
+                            ₹
+                            {currentBill}
+                          </p>
+                        </div>
+
+                        <div className="text-right">
+                          <p className="text-[10px] font-bold text-[#C24949] uppercase">
+                            Pending
+                          </p>
+
+                          <p className="font-black text-[#C24949] text-lg">
+                            ₹
+                            {
+                              adjustedPending
+                            }
+                          </p>
+                        </div>
+                      </div>
+
+                      {/* PAYMENT MODE */}
+
+                      <Field label="Payment Mode">
+                        <select
+                          value={
+                            paymentMode
+                          }
+                          onChange={(
+                            e
+                          ) =>
+                            setPaymentMode(
+                              e
+                                .target
+                                .value
+                            )
+                          }
+                          className="w-full bg-white border border-black/[0.06] rounded-xl px-3.5 py-2.5 text-sm"
+                        >
+                          <option value="Cash">
+                            Cash
+                          </option>
+
+                          <option value="UPI">
+                            UPI
+                          </option>
+
+                          <option value="Bank">
+                            Bank
+                          </option>
+                        </select>
+                      </Field>
+
+                      {/* DISCOUNT */}
+
+                      <div className="border-t border-black/[0.06] pt-4">
+                        <span className="text-xs font-semibold text-[#5B6B5E] uppercase tracking-wide">
+                          Apply
+                          Discount?
+                        </span>
+
+                        <div className="flex gap-2 mt-2">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setApplyDiscount(
+                                false
+                              );
+
+                              setDiscountAmount(
+                                ""
+                              );
+
+                              setDiscountReason(
+                                ""
+                              );
+                            }}
+                            className={`flex-1 py-2.5 rounded-xl text-sm font-semibold ${
+                              !applyDiscount
+                                ? "bg-[#1F3D2B] text-white"
+                                : "bg-white text-[#5B6B5E] border"
+                            }`}
+                          >
+                            No
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setApplyDiscount(
+                                true
+                              )
+                            }
+                            className={`flex-1 py-2.5 rounded-xl text-sm font-semibold ${
+                              applyDiscount
+                                ? "bg-[#D97706] text-white"
+                                : "bg-white text-[#5B6B5E] border"
+                            }`}
+                          >
+                            Yes
+                          </button>
+                        </div>
+
+                        {applyDiscount && (
+                          <div className="space-y-3 mt-4">
+                            <Field label="Discount Amount">
+                              <input
+                                type="number"
+                                inputMode="decimal"
+                                value={
+                                  discountAmount
+                                }
+                                onChange={(
+                                  e
+                                ) =>
+                                  setDiscountAmount(
+                                    e
+                                      .target
+                                      .value
+                                  )
+                                }
+                                placeholder="Enter discount"
+                                className="w-full bg-white border border-black/[0.06] rounded-xl px-3.5 py-2.5 text-sm"
+                              />
+                            </Field>
+
+                            <Field label="Discount Reason (optional)">
+                              <input
+                                value={
+                                  discountReason
+                                }
+                                onChange={(
+                                  e
+                                ) =>
+                                  setDiscountReason(
+                                    e
+                                      .target
+                                      .value
+                                  )
+                                }
+                                placeholder="e.g. Regular customer"
+                                className="w-full bg-white border border-black/[0.06] rounded-xl px-3.5 py-2.5 text-sm"
+                              />
+                            </Field>
+
+                            <div className="bg-[#FEF3C7]/60 rounded-xl p-3.5 flex justify-between items-center">
+                              <span className="text-xs font-bold text-[#D97706]">
+                                Final
+                                Pending
+                              </span>
+
+                              <span className="font-black text-[#D97706] text-lg">
+                                ₹
+                                {
+                                  adjustedPending
+                                }
+                              </span>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+
+                      {exceedsBill && (
+                        <div className="bg-[#FCEDED] rounded-xl p-3">
+                          <p className="text-[#C24949] text-xs font-semibold">
+                            Payment
+                            and
+                            discount
+                            together
+                            cannot
+                            exceed
+                            total
+                            bill.
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* EXTRAS */}
+
+              <div className="bg-white rounded-[1.5rem] shadow-sm border border-black/[0.04] p-5 space-y-4">
+                <h2 className="text-sm font-bold text-[#1F2A22]">
+                  Extras
+                </h2>
+
+                <Field label="Bill / Receipt Photo (optional)">
+                  <input
+                    type="file"
+                    accept="image/*"
+                    capture="environment"
+                    onChange={(
+                      e
+                    ) =>
+                      setBillImageFile(
+                        e.target
+                          .files[0] ||
+                          null
+                      )
+                    }
+                    className="w-full bg-[#F6F2E9] border border-black/[0.06] rounded-xl px-3.5 py-2.5 text-sm"
+                  />
+                </Field>
+
+                <Field label="Notes">
+                  <textarea
+                    value={
+                      notes
+                    }
+                    onChange={(
+                      e
+                    ) =>
+                      setNotes(
+                        e.target
+                          .value
+                      )
+                    }
+                    rows={2}
+                    className={
+                      inputClass
+                    }
+                  />
+                </Field>
+              </div>
+
+              {error && (
+                <div className="bg-[#FCEDED] border border-[#F3C6C6] rounded-2xl px-4 py-3">
+                  <p className="text-[#C24949] text-sm font-semibold">
+                    {error}
+                  </p>
+                </div>
+              )}
+
+              <button
+                type="submit"
+                disabled={
+                  loading ||
+                  exceedsBill
+                }
+                className="w-full bg-[#2B5439] text-white rounded-2xl py-3.5 font-bold text-sm shadow-sm disabled:opacity-50"
+              >
+                {loading
+                  ? "Saving..."
+                  : "Add Service"}
+              </button>
+            </form>
+          )}
+
+        {/* SUCCESS */}
+
+        {savedService && (
+          <div className="bg-white rounded-[1.5rem] shadow-sm border border-black/[0.04] p-5 space-y-3.5">
+            <div className="flex items-center gap-2.5">
+              <div className="h-10 w-10 rounded-xl bg-[#E9F3E9] flex items-center justify-center">
+                ✓
+              </div>
+
+              <p className="font-bold text-[#1F2A22]">
+                Service added
+                successfully
+              </p>
+            </div>
+
+            <p className="text-sm text-[#5B6B5E]">
+              Notify{" "}
+              {
+                farmer.fullName
+              }
+              ?
+            </p>
+
+            <SendMessageButtons
+              mobile={
+                farmer.mobile
+              }
+              message={buildServiceMessage(
+                farmer,
+                savedService
+              )}
+            />
+
+            <button
+              onClick={() =>
+                navigate(
+                  `/farmers/${farmer._id}`
+                )
+              }
+              className="w-full text-sm text-[#8A968C] font-medium mt-1 py-2"
+            >
+              Skip, go to
+              farmer profile →
+            </button>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
