@@ -18,6 +18,12 @@ export default function BulkPaymentModal({ farmerId, farmer, totalPending, onSuc
   const [loading, setLoading] = useState(false);
   const [resultServices, setResultServices] = useState(null);
 
+  // Frozen at modal-open time. The live `totalPending` prop can change
+  // after a successful payment (parent refetches on our "payments-updated"
+  // event while this modal is still showing its success screen), so all
+  // remaining-amount math must use this snapshot, not the live prop.
+  const [pendingSnapshot] = useState(totalPending);
+
   useEffect(() => {
     if (step === "captcha") {
       setCaptcha({ a: Math.floor(Math.random() * 9) + 1, b: Math.floor(Math.random() * 9) + 1 });
@@ -29,7 +35,7 @@ export default function BulkPaymentModal({ farmerId, farmer, totalPending, onSuc
     setError(null);
     const amt = Number(amount);
     if (!amt || amt <= 0) return setError("Enter a valid amount");
-    if (amt > totalPending) return setError(`Amount exceeds total pending (${formatCurrency(totalPending)})`);
+    if (amt > pendingSnapshot) return setError(`Amount exceeds total pending (${formatCurrency(pendingSnapshot)})`);
     if (!paidOn) return setError("Please select a date");
     setStep("captcha");
   };
@@ -49,6 +55,7 @@ export default function BulkPaymentModal({ farmerId, farmer, totalPending, onSuc
       setResultServices(data.services);
       setStep("success");
       onSuccess(data.services);
+      window.dispatchEvent(new Event("payments-updated"));
     } catch (err) {
       setError(err.response?.data?.message || "Failed to record payment");
     } finally {
@@ -57,7 +64,7 @@ export default function BulkPaymentModal({ farmerId, farmer, totalPending, onSuc
   };
 
   const newTotalPaid = resultServices?.reduce((sum, s) => sum + Number(s.amountPaid || 0), 0);
-  const remainingAfter = Math.max(totalPending - Number(amount || 0), 0);
+  const remainingAfter = Math.max(pendingSnapshot - Number(amount || 0), 0);
 
   return (
     <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
@@ -81,7 +88,7 @@ export default function BulkPaymentModal({ farmerId, farmer, totalPending, onSuc
 
             <div className="bg-[#F6F2E9] rounded-xl p-4 mb-4">
               <label className="block text-xs font-bold text-[#1F2A22]/50 uppercase tracking-wide mb-2">
-                Total Pending: {formatCurrency(totalPending)}
+                Total Pending: {formatCurrency(pendingSnapshot)}
               </label>
               <input
                 type="number"
@@ -96,10 +103,10 @@ export default function BulkPaymentModal({ farmerId, farmer, totalPending, onSuc
               />
               <button
                 type="button"
-                onClick={() => setAmount(String(totalPending))}
+                onClick={() => setAmount(String(pendingSnapshot))}
                 className="text-[11px] font-bold text-[#4C9A5A] mt-1.5"
               >
-                Full amount ({formatCurrency(totalPending)})
+                Full amount ({formatCurrency(pendingSnapshot)})
               </button>
             </div>
 
@@ -138,7 +145,6 @@ export default function BulkPaymentModal({ farmerId, farmer, totalPending, onSuc
                   />
                 </div>
               )}
-            
             </div>
 
             <div className="mb-4">

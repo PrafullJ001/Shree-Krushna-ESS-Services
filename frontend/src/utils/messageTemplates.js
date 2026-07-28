@@ -74,3 +74,18 @@ Payment Status: ${totalPending > 0 ? "Partially Paid ⚠️" : "Fully Paid ✅"}
 Thank you!
 ${BUSINESS_NAME}`;
 };
+
+export const buildSettleAllMessage = (farmer, totals) => {
+  const { totalBill, totalCollected } = totals;
+
+  return `Namaste ${farmer.fullName},
+
+Your account has been fully settled.
+Total Billed: ${formatCurrency(totalBill)}
+Total Paid: ${formatCurrency(totalCollected)}
+Remaining Pending: ${formatCurrency(0)}
+Payment Status: Fully Paid ✅
+
+Thank you!
+${BUSINESS_NAME}`;
+};
