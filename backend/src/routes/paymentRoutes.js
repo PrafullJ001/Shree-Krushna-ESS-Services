@@ -7,6 +7,8 @@ const {
   getPendingPayments,
   updatePayment,
   deletePayment,
+  settleAllForFarmer,
+  recordBulkPayment,
 } = require('../controllers/paymentController');
 const { protect, adminOnly } = require('../middleware/authMiddleware');
 
@@ -18,5 +20,7 @@ router.get('/farmer/:farmerId', getPaymentsForFarmer);
 router.get('/pending', getPendingPayments);
 router.put('/:id', adminOnly, updatePayment);
 router.delete('/:id', adminOnly, deletePayment);
+router.post('/settle-all/:farmerId', adminOnly, settleAllForFarmer);
+router.post('/bulk/:farmerId', recordBulkPayment);
 
 module.exports = router;

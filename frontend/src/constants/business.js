@@ -1,0 +1,1 @@
+export const BUSINESS_NAME = "Shree Krishna ESS Spraying Service";

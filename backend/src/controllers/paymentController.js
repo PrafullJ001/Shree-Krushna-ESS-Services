@@ -433,3 +433,111 @@ exports.deletePayment = async (
     });
   }
 };
+exports.settleAllForFarmer = async (req, res) => {
+  try {
+    const { farmerId } = req.params;
+
+    const services = await ServiceRecord.find({
+      farmer: farmerId,
+      paymentStatus: { $in: ['Unpaid', 'Partially Paid'] },
+    });
+
+    if (services.length === 0) {
+      return res.status(400).json({ message: 'No pending services to settle' });
+    }
+
+    const settledServices = [];
+
+    for (const service of services) {
+      const pendingPaise = toPaise(service.pendingAmount);
+      if (pendingPaise <= 0) continue;
+
+      await Payment.create({
+        serviceRecord: service._id,
+        farmer: service.farmer,
+        amount: fromPaise(pendingPaise),
+        mode: 'Cash',
+        type: 'Payment',
+        note: 'Settled in full (bulk clear)',
+        receivedBy: req.user?._id,
+      });
+
+      service.amountPaid = service.totalBill;
+      service.recalculate();
+      await service.save();
+      settledServices.push(service);
+    }
+
+    res.json({
+      message: `${settledServices.length} service(s) settled`,
+      services: settledServices,
+    });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+};
+
+exports.recordBulkPayment = async (req, res) => {
+  try {
+    const { farmerId } = req.params;
+    const { amount, mode, note } = req.body;
+
+    let remainingPaise = toPaise(amount);
+    if (!remainingPaise || remainingPaise <= 0) {
+      return res.status(400).json({ message: 'Amount must be greater than 0' });
+    }
+
+    // Oldest unpaid service first — clears older debts before newer ones
+    const services = await ServiceRecord.find({
+      farmer: farmerId,
+      paymentStatus: { $in: ['Unpaid', 'Partially Paid'] },
+    }).sort({ serviceDate: 1 });
+
+    if (services.length === 0) {
+      return res.status(400).json({ message: 'No pending services for this farmer' });
+    }
+
+    const totalPendingPaise = services.reduce((sum, s) => sum + toPaise(s.pendingAmount), 0);
+    if (remainingPaise > totalPendingPaise) {
+      return res.status(400).json({
+        message: `Amount exceeds total pending (₹${fromPaise(totalPendingPaise)})`,
+      });
+    }
+
+    const updatedServices = [];
+
+    for (const service of services) {
+      if (remainingPaise <= 0) break;
+      const pendingPaise = toPaise(service.pendingAmount);
+      if (pendingPaise <= 0) continue;
+
+      const applyPaise = Math.min(pendingPaise, remainingPaise);
+      const applyAmount = fromPaise(applyPaise);
+
+      await Payment.create({
+        serviceRecord: service._id,
+        farmer: service.farmer,
+        amount: applyAmount,
+        mode: mode || 'Cash',
+        type: 'Payment',
+        note: note || 'Bulk payment across multiple services',
+        receivedBy: req.user?._id,
+      });
+
+      service.amountPaid = fromPaise(toPaise(service.amountPaid) + applyPaise);
+      service.paymentMode = mode || service.paymentMode;
+      service.recalculate();
+      await service.save();
+      updatedServices.push(service);
+
+      remainingPaise -= applyPaise;
+    }
+
+    res.json({
+      message: `Payment applied across ${updatedServices.length} service(s)`,
+      services: updatedServices,
+    });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+};
