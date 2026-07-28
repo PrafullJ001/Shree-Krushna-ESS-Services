@@ -433,9 +433,15 @@ exports.deletePayment = async (
     });
   }
 };
+
 exports.settleAllForFarmer = async (req, res) => {
   try {
     const { farmerId } = req.params;
+    const { paidOn, mode, note } = req.body;
+
+    // Parse the date the user picked; fall back to now if not provided/invalid.
+    const paidOnDate = paidOn ? new Date(paidOn) : new Date();
+    const resolvedPaidOn = isNaN(paidOnDate.getTime()) ? new Date() : paidOnDate;
 
     const services = await ServiceRecord.find({
       farmer: farmerId,
@@ -456,13 +462,15 @@ exports.settleAllForFarmer = async (req, res) => {
         serviceRecord: service._id,
         farmer: service.farmer,
         amount: fromPaise(pendingPaise),
-        mode: 'Cash',
+        mode: mode || 'Cash',
         type: 'Payment',
-        note: 'Settled in full (bulk clear)',
+        note: note || 'Settled in full (bulk clear)',
+        paidOn: resolvedPaidOn,
         receivedBy: req.user?._id,
       });
 
       service.amountPaid = service.totalBill;
+      service.paymentMode = mode || service.paymentMode;
       service.recalculate();
       await service.save();
       settledServices.push(service);
@@ -480,7 +488,11 @@ exports.settleAllForFarmer = async (req, res) => {
 exports.recordBulkPayment = async (req, res) => {
   try {
     const { farmerId } = req.params;
-    const { amount, mode, note } = req.body;
+    const { amount, mode, note, paidOn } = req.body;
+
+    // Parse the date the user picked; fall back to now if not provided/invalid.
+    const paidOnDate = paidOn ? new Date(paidOn) : new Date();
+    const resolvedPaidOn = isNaN(paidOnDate.getTime()) ? new Date() : paidOnDate;
 
     let remainingPaise = toPaise(amount);
     if (!remainingPaise || remainingPaise <= 0) {
@@ -521,6 +533,7 @@ exports.recordBulkPayment = async (req, res) => {
         mode: mode || 'Cash',
         type: 'Payment',
         note: note || 'Bulk payment across multiple services',
+        paidOn: resolvedPaidOn,
         receivedBy: req.user?._id,
       });
 

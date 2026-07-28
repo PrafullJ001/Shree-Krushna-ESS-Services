@@ -4,11 +4,14 @@ import { formatCurrency } from "../../utils/formatCurrency";
 import { buildBulkPaymentMessage } from "../../utils/messageTemplates";
 import SendMessageButtons from "../common/SendMessageButtons";
 
+const todayStr = () => new Date().toISOString().split("T")[0];
+
 export default function BulkPaymentModal({ farmerId, farmer, totalPending, onSuccess, onClose }) {
   const [step, setStep] = useState("amount"); // amount -> captcha -> success
   const [amount, setAmount] = useState("");
   const [mode, setMode] = useState("Cash");
   const [note, setNote] = useState("");
+  const [paidOn, setPaidOn] = useState(todayStr());
   const [captcha, setCaptcha] = useState({ a: 0, b: 0 });
   const [answer, setAnswer] = useState("");
   const [error, setError] = useState(null);
@@ -27,6 +30,7 @@ export default function BulkPaymentModal({ farmerId, farmer, totalPending, onSuc
     const amt = Number(amount);
     if (!amt || amt <= 0) return setError("Enter a valid amount");
     if (amt > totalPending) return setError(`Amount exceeds total pending (${formatCurrency(totalPending)})`);
+    if (!paidOn) return setError("Please select a date");
     setStep("captcha");
   };
 
@@ -41,7 +45,7 @@ export default function BulkPaymentModal({ farmerId, farmer, totalPending, onSuc
 
     setLoading(true);
     try {
-      const { data } = await recordBulkPayment(farmerId, { amount: Number(amount), mode, note });
+      const { data } = await recordBulkPayment(farmerId, { amount: Number(amount), mode, note, paidOn });
       setResultServices(data.services);
       setStep("success");
       onSuccess(data.services);
@@ -100,6 +104,18 @@ export default function BulkPaymentModal({ farmerId, farmer, totalPending, onSuc
             </div>
 
             <div className="mb-4">
+              <label className="block text-xs font-bold text-[#1F2A22]/50 uppercase tracking-wide mb-1.5">Date</label>
+              <input
+                type="date"
+                name="bulkPaymentDate"
+                value={paidOn}
+                max={todayStr()}
+                onChange={(e) => setPaidOn(e.target.value)}
+                className="w-full bg-[#F6F2E9] border border-black/[0.06] rounded-xl px-3.5 py-2.5 text-sm"
+              />
+            </div>
+
+            <div className="mb-4">
               <label className="block text-xs font-bold text-[#1F2A22]/50 uppercase tracking-wide mb-1.5">Mode</label>
               <select
                 value={mode}
@@ -110,6 +126,19 @@ export default function BulkPaymentModal({ farmerId, farmer, totalPending, onSuc
                 <option value="UPI">UPI / Online</option>
                 <option value="Bank">Bank Transfer</option>
               </select>
+
+              {mode === "UPI" && (
+                <div className="flex justify-center mt-3">
+                  <img
+                    src="/upi-qr.png"
+                    alt="UPI QR Code"
+                    height={120}
+                    width={120}
+                    className="rounded-xl border border-black/[0.08]"
+                  />
+                </div>
+              )}
+            
             </div>
 
             <div className="mb-4">

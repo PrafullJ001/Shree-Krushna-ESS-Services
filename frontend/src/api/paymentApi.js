@@ -14,8 +14,8 @@ export const updatePayment = (id, data) => axiosInstance.put(`/payments/${id}`, 
 
 export const deletePayment = (id) => axiosInstance.delete(`/payments/${id}`);
 
-export const settleAllForFarmer = (farmerId) =>
-  axiosInstance.post(`/payments/settle-all/${farmerId}`);
+export const settleAllForFarmer = (farmerId, data) =>
+  axiosInstance.post(`/payments/settle-all/${farmerId}`, data);
 
 export const recordBulkPayment = (farmerId, data) =>
   axiosInstance.post(`/payments/bulk/${farmerId}`, data);

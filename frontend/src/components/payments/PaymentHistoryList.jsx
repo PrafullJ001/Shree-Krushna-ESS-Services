@@ -33,6 +33,15 @@ export default function PaymentHistoryList({ serviceId, onChanged }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [serviceId]);
 
+  // Bulk payment and settle-all create payments for this service without
+  // reloading the page, so listen for their completion event and refetch.
+  useEffect(() => {
+    const handlePaymentsUpdated = () => fetchPayments();
+    window.addEventListener("payments-updated", handlePaymentsUpdated);
+    return () => window.removeEventListener("payments-updated", handlePaymentsUpdated);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [serviceId]);
+
   const handleDeleteConfirmed = async () => {
     setDeleteLoading(true);
     try {
