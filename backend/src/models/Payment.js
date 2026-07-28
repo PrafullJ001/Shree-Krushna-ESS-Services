@@ -1,5 +1,19 @@
 ﻿const mongoose = require("mongoose");
 
+const editHistorySchema = new mongoose.Schema(
+  {
+    previousAmount: Number,
+    previousMode: String,
+    previousNote: String,
+    editedAt: Date,
+    editedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+    },
+  },
+  { _id: false }
+);
+
 const paymentSchema = new mongoose.Schema(
   {
     serviceRecord: {
@@ -39,6 +53,12 @@ const paymentSchema = new mongoose.Schema(
     receivedBy: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
+    },
+
+    // Log of prior versions — populated whenever this payment is edited
+    editHistory: {
+      type: [editHistorySchema],
+      default: [],
     },
   },
   { timestamps: true }

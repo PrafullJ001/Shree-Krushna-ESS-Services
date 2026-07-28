@@ -5,6 +5,7 @@ const {
   getPaymentsForService,
   getPaymentsForFarmer,
   getPendingPayments,
+  updatePayment,
   deletePayment,
 } = require('../controllers/paymentController');
 const { protect, adminOnly } = require('../middleware/authMiddleware');
@@ -15,6 +16,7 @@ router.post('/', addPayment);
 router.get('/service/:serviceRecordId', getPaymentsForService);
 router.get('/farmer/:farmerId', getPaymentsForFarmer);
 router.get('/pending', getPendingPayments);
+router.put('/:id', adminOnly, updatePayment);
 router.delete('/:id', adminOnly, deletePayment);
 
 module.exports = router;

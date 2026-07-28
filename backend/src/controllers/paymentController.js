@@ -103,16 +103,16 @@ exports.addPayment = async (req, res) => {
         currentBillPaise -
         discountPaise;
 
-      if (
-        totalBillAfterDiscountPaise <
-        amountPaidAfterPaymentPaise
-      ) {
-        return res.status(400).json({
-          message:
-            "Discount is too high. Final bill cannot be less than the total amount paid.",
-        });
-      }
-    }
+     if (
+  totalBillAfterDiscountPaise < amountPaidAfterPaymentPaise
+) {
+  return res.status(400).json({
+    message:
+      "Discount is too high. Final bill cannot be less than the total amount paid.",
+  });
+}
+}
+
 
     // ---------------------------------------------
     // CREATE NORMAL PAYMENT
@@ -187,6 +187,109 @@ exports.addPayment = async (req, res) => {
     res.status(201).json({
       payment,
       discount: discountEntry,
+      service,
+    });
+  } catch (err) {
+    res.status(500).json({
+      message: err.message,
+    });
+  }
+};
+
+// -------------------------------------------------------
+// EDIT AN EXISTING PAYMENT
+// Adjusts service.amountPaid by the DIFFERENCE between the
+// old and new amount (not a blind overwrite), keeps a log
+// of what changed on the payment itself, and re-runs the
+// service's own recalculate() so pending amount / status
+// stay correct everywhere else in the app.
+// -------------------------------------------------------
+exports.updatePayment = async (req, res) => {
+  try {
+    const { amount, mode, note } = req.body;
+
+    const payment = await Payment.findById(req.params.id);
+
+    if (!payment) {
+      return res.status(404).json({
+        message: "Payment not found",
+      });
+    }
+
+    if (payment.type === "Discount") {
+      return res.status(400).json({
+        message:
+          "Discounts cannot be edited here. Delete and re-apply instead.",
+      });
+    }
+
+    const newAmountPaise = toPaise(amount);
+    const newAmount = fromPaise(newAmountPaise);
+
+    if (!newAmountPaise || newAmountPaise <= 0) {
+      return res.status(400).json({
+        message: "Amount must be greater than 0",
+      });
+    }
+
+    const service = await ServiceRecord.findById(
+      payment.serviceRecord
+    );
+
+    if (!service) {
+      return res.status(404).json({
+        message: "Linked service record not found",
+      });
+    }
+
+    const oldAmountPaise = toPaise(payment.amount);
+    const currentPaidPaise = toPaise(service.amountPaid);
+    const currentBillPaise = toPaise(service.totalBill);
+
+    // Remove the old amount, then add the new amount, to get
+    // the correct new total paid on the service record.
+    const newPaidPaise =
+      currentPaidPaise - oldAmountPaise + newAmountPaise;
+
+    if (newPaidPaise < 0) {
+      return res.status(400).json({
+        message: "Resulting paid amount cannot be negative",
+      });
+    }
+
+    if (newPaidPaise > currentBillPaise) {
+      return res.status(400).json({
+        message: "Edited amount would exceed the total bill",
+      });
+    }
+
+    // Keep a log of what changed, for the payment history display.
+    payment.editHistory = payment.editHistory || [];
+    payment.editHistory.push({
+      previousAmount: payment.amount,
+      previousMode: payment.mode,
+      previousNote: payment.note,
+      editedAt: new Date(),
+      editedBy: req.user?._id,
+    });
+
+    payment.amount = newAmount;
+    payment.mode = mode || payment.mode;
+    payment.note = note !== undefined ? note : payment.note;
+
+    await payment.save();
+
+    service.amountPaid = fromPaise(newPaidPaise);
+    service.paymentMode = mode || service.paymentMode;
+    service.recalculate();
+
+    await service.save();
+
+    await payment.populate("receivedBy", "name role");
+
+    res.json({
+      message: "Payment updated",
+      payment,
       service,
     });
   } catch (err) {

@@ -51,19 +51,15 @@ export default function FarmerHistoryTable({
 
     try {
       await deleteService(deletingService._id);
-
-      setDeletingService(null);
-
-      if (onServiceDeleted) {
-        onServiceDeleted(deletingService._id);
-      }
+      // Force a full page refresh so the list, bill totals, and
+      // history everywhere reflect exactly what's in the database.
+      window.location.reload();
     } catch (err) {
       setDeleteError(
         err.response?.data?.message ||
           "Failed to delete service"
       );
       setDeletingService(null);
-    } finally {
       setDeleteLoading(false);
     }
   };

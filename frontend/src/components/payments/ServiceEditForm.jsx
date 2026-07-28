@@ -125,11 +125,12 @@ export default function ServiceEditForm({ service, onSuccess, onCancel }) {
       fd.append("totalBill", totalBill);
       if (notes !== "") fd.append("notes", notes);
 
-      const { data } = await updateService(service._id, fd);
-      onSuccess(data.service);
+      await updateService(service._id, fd);
+      // Force a full page refresh so every screen (bill total, paid,
+      // pending, history) reflects exactly what's in the database.
+      window.location.reload();
     } catch (err) {
       setError(err.response?.data?.message || "Failed to update service");
-    } finally {
       setLoading(false);
     }
   };

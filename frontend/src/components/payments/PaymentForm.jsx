@@ -1,10 +1,18 @@
-import { useState } from "react";
+﻿import { useState } from "react";
 import { addPayment } from "../../api/paymentApi";
 import { formatCurrency } from "../../utils/formatCurrency";
 import { formatDate } from "../../utils/formatDate";
 import { buildPaymentMessage } from "../../utils/messageTemplates";
 import SendMessageButtons from "../common/SendMessageButtons";
 import { useAuth } from "../../hooks/useAuth";
+
+const getTodayLocal = () => {
+  const d = new Date();
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+};
 
 export default function PaymentForm({
   service,
@@ -17,6 +25,7 @@ export default function PaymentForm({
   const [amount, setAmount] = useState("");
   const [mode, setMode] = useState("Cash");
   const [note, setNote] = useState("");
+  const [paidOnDate, setPaidOnDate] = useState(getTodayLocal());
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(false);
 
@@ -101,6 +110,12 @@ export default function PaymentForm({
       );
     }
 
+    if (!paidOnDate) {
+      return setError(
+        "Please select a payment date"
+      );
+    }
+
     if (applyDiscount) {
       if (
         !discount ||
@@ -136,6 +151,8 @@ export default function PaymentForm({
 
           note,
 
+          paidOn: paidOnDate,
+
           applyDiscount,
 
           discountAmount:
@@ -159,7 +176,7 @@ export default function PaymentForm({
       );
 
       setPaidAt(
-        new Date()
+        new Date(paidOnDate)
       );
 
       setPaymentSuccess(true);
@@ -373,6 +390,25 @@ export default function PaymentForm({
             max={originalPending}
             min="1"
             placeholder="0.00"
+            required
+            className={inputClassName}
+          />
+        </div>
+
+        <div>
+          <label className={labelClassName}>
+            Payment Date
+          </label>
+
+          <input
+            type="date"
+            value={paidOnDate}
+            onChange={(e) =>
+              setPaidOnDate(
+                e.target.value
+              )
+            }
+            max={getTodayLocal()}
             required
             className={inputClassName}
           />
