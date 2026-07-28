@@ -1370,7 +1370,7 @@ export default function AddService() {
                               UPI_QR_IMAGE
                             }
                             alt="UPI QR Code"
-                            className="w-44 h-44 object-contain rounded-xl border border-black/[0.06] bg-white p-2"
+                            className="w-120 h-120 object-contain rounded-xl border border-black/[0.06] bg-white p-2"
                           />
 
                           <p className="text-[11px] font-medium text-[#8A968C] mt-2 text-center">
