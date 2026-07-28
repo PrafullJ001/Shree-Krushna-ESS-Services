@@ -9,10 +9,10 @@ createRoot(document.getElementById("root")).render(
   </StrictMode>
 );
 
-if ('serviceWorker' in navigator) {
-  window.addEventListener('load', () => {
-    navigator.serviceWorker.register('/service-worker.js').catch((err) => {
-      console.error('Service worker registration failed:', err);
-    });
+// Unregister any previously-installed service worker (from earlier testing)
+// so browsers that already have the broken one stuck get cleaned up automatically.
+if ("serviceWorker" in navigator) {
+  navigator.serviceWorker.getRegistrations().then((regs) => {
+    regs.forEach((reg) => reg.unregister());
   });
 }
