@@ -1,4 +1,4 @@
-import { useState } from "react";
+﻿import { useState } from "react";
 import { formatCurrency } from "../../utils/formatCurrency";
 import { formatDate } from "../../utils/formatDate";
 import PaymentForm from "./PaymentForm";
@@ -7,6 +7,7 @@ import PaymentHistoryList from "./PaymentHistoryList";
 import { deleteService } from "../../api/serviceApi";
 import { useAuth } from "../../hooks/useAuth";
 import EmptyState from "../common/EmptyState";
+import MathCaptchaModal from "../common/MathCaptchaModal";
 
 export default function FarmerHistoryTable({
   services = [],
@@ -24,6 +25,12 @@ export default function FarmerHistoryTable({
   const [editingService, setEditingService] =
     useState(null);
 
+  const [deletingService, setDeletingService] =
+    useState(null);
+
+  const [deleteLoading, setDeleteLoading] =
+    useState(false);
+
   const [deleteError, setDeleteError] =
     useState(null);
 
@@ -38,28 +45,26 @@ export default function FarmerHistoryTable({
       "text-[#C24949] bg-[#FCEDED] border-[#F3C6C6]",
   };
 
-  const handleDelete = async (service) => {
-    if (
-      !window.confirm(
-        "Delete this service record? This cannot be undone."
-      )
-    ) {
-      return;
-    }
-
+  const handleDeleteConfirmed = async () => {
+    setDeleteLoading(true);
     setDeleteError(null);
 
     try {
-      await deleteService(service._id);
+      await deleteService(deletingService._id);
+
+      setDeletingService(null);
 
       if (onServiceDeleted) {
-        onServiceDeleted(service._id);
+        onServiceDeleted(deletingService._id);
       }
     } catch (err) {
       setDeleteError(
         err.response?.data?.message ||
           "Failed to delete service"
       );
+      setDeletingService(null);
+    } finally {
+      setDeleteLoading(false);
     }
   };
 
@@ -425,30 +430,31 @@ export default function FarmerHistoryTable({
 
               {/* Receipt and Payment Buttons */}
               <div className="flex items-center gap-2 pt-2">
-                {s.billImage && (
-                  <a
-                    href={s.billImage}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex-1 flex justify-center items-center gap-1.5 py-2.5 bg-white border border-black/10 rounded-xl text-[12px] font-bold text-[#1F2A22]/70 active:bg-gray-50 transition-colors"
-                  >
-                    <svg
-                      viewBox="0 0 24 24"
-                      className="h-4 w-4"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="2"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13"
-                      />
-                    </svg>
+{s.billImage && (
+  <a
+    href={s.billImage}
+    target="_blank"
+    rel="noopener noreferrer"
+    className="flex-1 flex justify-center items-center gap-1.5 py-2.5 bg-white border border-black/10 rounded-xl text-[12px] font-bold text-[#1F2A22]/70 active:bg-gray-50 transition-colors"
+  >
+    <svg
+      viewBox="0 0 24 24"
+      className="h-4 w-4"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+    >
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13"
+      />
+    </svg>
 
-                    Receipt
-                  </a>
-                )}
+    Receipt
+  </a>
+)}
+          
 
                 {Number(
                   s.pendingAmount
@@ -510,7 +516,7 @@ export default function FarmerHistoryTable({
                       <button
                         type="button"
                         onClick={() =>
-                          handleDelete(s)
+                          setDeletingService(s)
                         }
                         className="text-[12px] font-bold text-[#C24949]/70 hover:text-[#C24949] transition-colors uppercase tracking-wide flex items-center gap-1"
                       >
@@ -537,6 +543,16 @@ export default function FarmerHistoryTable({
           </div>
         );
       })}
+
+      {deletingService && (
+        <MathCaptchaModal
+          title="Delete this service record?"
+          message={`This will permanently delete the ${deletingService.cropName} service record and cannot be undone.`}
+          onCancel={() => setDeletingService(null)}
+          onConfirm={handleDeleteConfirmed}
+          loading={deleteLoading}
+        />
+      )}
     </div>
   );
 }

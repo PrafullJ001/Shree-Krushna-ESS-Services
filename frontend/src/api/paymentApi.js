@@ -1,4 +1,4 @@
-import axiosInstance from "./axiosInstance";
+﻿import axiosInstance from "./axiosInstance";
 
 export const addPayment = (paymentData) =>
   axiosInstance.post("/payments", paymentData);
@@ -11,6 +11,9 @@ export const getPaymentsForFarmer = (farmerId) =>
 
 export const getPendingPayments = () =>
   axiosInstance.get("/payments/pending");
+
+export const updatePayment = (id, paymentData) =>
+  axiosInstance.put(`/payments/${id}`, paymentData);
 
 export const deletePayment = (id) =>
   axiosInstance.delete(`/payments/${id}`);
