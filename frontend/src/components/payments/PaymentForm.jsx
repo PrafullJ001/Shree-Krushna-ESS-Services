@@ -14,6 +14,10 @@ const getTodayLocal = () => {
   return `${year}-${month}-${day}`;
 };
 
+// Path to your UPI QR code image. Put the actual image file in your
+// frontend's /public folder (e.g. public/upi-qr.png) so this path resolves.
+const UPI_QR_IMAGE = "/upi-qr.png";
+
 export default function PaymentForm({
   service,
   farmer,
@@ -467,6 +471,25 @@ export default function PaymentForm({
               Bank Transfer
             </option>
           </select>
+
+          {/* UPI QR CODE */}
+          {mode === "UPI" && (
+            <div className="mt-3 bg-[#F6F2E9]/60 border border-black/[0.05] rounded-2xl p-4 flex flex-col items-center">
+              <p className="text-[12px] font-bold text-[#1F2A22]/60 uppercase tracking-wider mb-3">
+                Scan to Pay via UPI
+              </p>
+
+              <img
+                src={UPI_QR_IMAGE}
+                alt="UPI QR Code"
+                className="w-44 h-44 object-contain rounded-xl border border-black/[0.06] bg-white p-2"
+              />
+
+              <p className="text-[11px] font-medium text-[#1F2A22]/40 mt-2 text-center">
+                Ask the farmer to scan this code, then enter the paid amount above.
+              </p>
+            </div>
+          )}
         </div>
 
         <div>

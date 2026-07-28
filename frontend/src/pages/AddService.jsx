@@ -31,6 +31,10 @@ function Field({ label, hint, children }) {
 const inputClass =
   "w-full bg-[#F6F2E9] border border-black/[0.06] rounded-xl px-3.5 py-2.5 text-sm text-[#1F2A22] placeholder-[#A3AFA5] focus:outline-none focus:ring-2 focus:ring-[#4C9A5A]/30 focus:border-[#4C9A5A]/40 transition-all";
 
+// Path to your UPI QR code image. Put the actual image file in your
+// frontend's /public folder (e.g. public/upi-qr.png) so this path resolves.
+const UPI_QR_IMAGE = "/upi-qr.png";
+
 const getTodayLocal = () => {
   const d = new Date();
 
@@ -1351,6 +1355,35 @@ export default function AddService() {
                           </option>
                         </select>
                       </Field>
+
+                      {/* UPI QR CODE */}
+                      {paymentMode ===
+                        "UPI" && (
+                        <div className="bg-white border border-black/[0.06] rounded-xl p-3.5 flex flex-col items-center">
+                          <p className="text-[11px] font-bold text-[#5B6B5E] uppercase tracking-wide mb-3">
+                            Scan to Pay
+                            via UPI
+                          </p>
+
+                          <img
+                            src={
+                              UPI_QR_IMAGE
+                            }
+                            alt="UPI QR Code"
+                            className="w-44 h-44 object-contain rounded-xl border border-black/[0.06] bg-white p-2"
+                          />
+
+                          <p className="text-[11px] font-medium text-[#8A968C] mt-2 text-center">
+                            Ask the
+                            farmer to
+                            scan this
+                            code, then
+                            enter the
+                            amount paid
+                            above.
+                          </p>
+                        </div>
+                      )}
 
                       {/* DISCOUNT */}
 
