@@ -107,23 +107,54 @@ exports.registerFarmer = async (req, res) => {
       });
     }
 
-    const farmerCode =
-      await generateFarmerCode();
+    let farmer = null;
+    let attempts = 0;
 
-    const farmer = await Farmer.create({
-      farmerCode,
-      fullName,
-      mobile,
-      altMobile,
-      village,
-      notes,
-    });
+    // Retry farmerCode generation up to 3 times in case of a
+    // near-simultaneous collision — this is the real fix, since
+    // countDocuments()-based codes could collide under concurrent writes.
+    while (!farmer && attempts < 3) {
+      attempts += 1;
+      const farmerCode = await generateFarmerCode();
+
+      try {
+        farmer = await Farmer.create({
+          farmerCode,
+          fullName,
+          mobile,
+          altMobile,
+          village,
+          notes,
+        });
+      } catch (createErr) {
+        if (
+          createErr.code === 11000 &&
+          createErr.keyPattern?.farmerCode
+        ) {
+          // farmerCode collision specifically — retry with a fresh code
+          continue;
+        }
+        throw createErr;
+      }
+    }
+
+    if (!farmer) {
+      return res.status(500).json({
+        message:
+          "Could not generate a unique farmer code — please try again",
+      });
+    }
 
     res.status(201).json(farmer);
   } catch (err) {
     if (err.code === 11000) {
+      // Report the ACTUAL colliding field instead of always blaming mobile
+      const field = err.keyPattern
+        ? Object.keys(err.keyPattern)[0]
+        : "field";
+
       return res.status(409).json({
-        message: "Duplicate mobile number",
+        message: `Duplicate ${field} — a record with this ${field} already exists`,
       });
     }
 
@@ -173,7 +204,6 @@ exports.updateFarmer = async (req, res) => {
       });
     }
 
-    // Check duplicate mobile only if mobile changed
     if (
       mobile &&
       mobile !== farmer.mobile
@@ -190,15 +220,8 @@ exports.updateFarmer = async (req, res) => {
       }
     }
 
-    /*
-      Store the old village before updating.
-
-      This lets us detect whether the farmer's
-      village was actually changed.
-    */
     const oldVillage = farmer.village;
 
-    // Update farmer fields
     if (fullName !== undefined) {
       farmer.fullName = fullName;
     }
@@ -219,14 +242,8 @@ exports.updateFarmer = async (req, res) => {
       farmer.notes = notes;
     }
 
-    // Save farmer changes to MongoDB
     await farmer.save();
 
-    /*
-      If the village was changed from Farmer Profile,
-      update the village in all existing service records
-      belonging to this farmer.
-    */
     if (
       village !== undefined &&
       village !== oldVillage
