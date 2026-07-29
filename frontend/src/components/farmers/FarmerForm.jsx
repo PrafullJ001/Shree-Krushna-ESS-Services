@@ -103,7 +103,7 @@ export default function FarmerForm({
 
         if (dupCheck.duplicate) {
           setError(
-            `Farmer already exists: ${dupCheck.farmer.fullName} (${dupCheck.farmer.farmerCode})`
+            `Farmer already exists : ${dupCheck.farmer.fullName} ${dupCheck.farmer.mobile} (${dupCheck.farmer.farmerCode})`
           );
 
           setLoading(false);
