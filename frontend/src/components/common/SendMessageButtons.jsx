@@ -41,7 +41,7 @@
 
 
 import { useState } from "react";
-import { MessageCircle, Briefcase, Send, X } from "lucide-react";
+import { MessageCircle, Briefcase, Send } from "lucide-react";
 
 const isAndroid = () => /Android/i.test(navigator.userAgent);
 
@@ -81,74 +81,44 @@ export default function SendMessageButtons({ mobile, message }) {
   };
 
   return (
-    <div className="relative">
+    <div>
       <div className="flex gap-2">
         <button
           type="button"
           onClick={() => setShowOptions((v) => !v)}
-          className="flex-1 flex items-center justify-center gap-2 bg-green-600 text-white text-sm py-2.5 rounded-xl font-medium shadow-sm hover:bg-green-700 active:scale-[0.98] transition-all"
+          className="flex-1 bg-green-600 text-white text-sm text-center py-2 rounded-lg font-medium"
         >
-          <MessageCircle size={16} strokeWidth={2.25} />
-          WhatsApp
+          Send via WhatsApp
         </button>
 
         <a
           href={smsUrl}
-          className="flex-1 flex items-center justify-center gap-2 bg-blue-700 text-white text-sm py-2.5 rounded-xl font-medium shadow-sm hover:bg-blue-800 active:scale-[0.98] transition-all"
+          className="flex-1 flex items-center justify-center gap-2 bg-blue-700 text-white text-sm py-2 rounded-lg font-medium shadow-sm hover:bg-blue-800 active:scale-[0.98] transition-all"
         >
           <Send size={15} strokeWidth={2.25} />
-          SMS
+          Send via SMS
         </a>
       </div>
 
       {showOptions && (
-        <>
-          {/* backdrop */}
-          <div
-            className="fixed inset-0 bg-black/30 z-10"
-            onClick={() => setShowOptions(false)}
-          />
-
-          {/* modern centered sheet */}
-          <div className="absolute left-0 right-0 top-full mt-3 z-20 bg-white rounded-2xl shadow-2xl border border-gray-100 p-2 animate-in fade-in zoom-in-95 duration-150">
-            <div className="flex items-center justify-between px-2 pt-1 pb-2">
-              <span className="text-xs font-medium text-gray-400 uppercase tracking-wide">
-                Choose account
-              </span>
-              <button
-                type="button"
-                onClick={() => setShowOptions(false)}
-                className="text-gray-400 hover:text-gray-600 transition-colors"
-              >
-                <X size={14} />
-              </button>
-            </div>
-
-            <div className="grid grid-cols-2 gap-2">
-              <button
-                type="button"
-                onClick={openRegularWhatsApp}
-                className="flex flex-col items-center gap-2 rounded-xl py-3 px-2 bg-gray-50 hover:bg-green-50 active:scale-[0.97] transition-all"
-              >
-                <span className="h-10 w-10 flex items-center justify-center rounded-full bg-green-500 text-white shadow-sm">
-                  <MessageCircle size={18} strokeWidth={2.25} />
-                </span>
-                <span className="text-xs font-medium text-gray-700">WhatsApp</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={openBusinessWhatsApp}
-                className="flex flex-col items-center gap-2 rounded-xl py-3 px-2 bg-gray-50 hover:bg-emerald-50 active:scale-[0.97] transition-all"
-              >
-                <span className="h-10 w-10 flex items-center justify-center rounded-full bg-emerald-700 text-white shadow-sm">
-                  <Briefcase size={18} strokeWidth={2.25} />
-                </span>
-                <span className="text-xs font-medium text-gray-700">Business</span>
-              </button>
-            </div>
-          </div>
-        </>
+        <div className="mt-2 bg-white border border-gray-200 rounded-lg shadow-sm overflow-hidden animate-in fade-in slide-in-from-top-1 duration-150">
+          <button
+            type="button"
+            onClick={openRegularWhatsApp}
+            className="w-full text-left px-4 py-3 text-sm font-medium text-gray-700 hover:bg-gray-50 border-b border-gray-100 flex items-center gap-2"
+          >
+            <MessageCircle size={16} strokeWidth={2.25} className="text-green-500" />
+            WhatsApp
+          </button>
+          <button
+            type="button"
+            onClick={openBusinessWhatsApp}
+            className="w-full text-left px-4 py-3 text-sm font-medium text-gray-700 hover:bg-gray-50 flex items-center gap-2"
+          >
+            <Briefcase size={16} strokeWidth={2.25} className="text-emerald-700" />
+            WhatsApp Business
+          </button>
+        </div>
       )}
     </div>
   );
