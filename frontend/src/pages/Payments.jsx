@@ -1,10 +1,12 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { getPendingPayments } from "../api/paymentApi";
 import { formatCurrency } from "../utils/formatCurrency";
 import { formatDate } from "../utils/formatDate";
 import Spinner from "../components/common/Spinner";
 import EmptyState from "../components/common/EmptyState";
+import jsPDF from "jspdf";
+import autoTable from "jspdf-autotable";
 
 const getTodayLocal = () => {
   const d = new Date();
@@ -19,8 +21,6 @@ const monthsAgo = (n) => {
 
 const PRESETS = [
   { label: "All Time", from: "", to: "" },
-  { label: "Last 30 Days", from: monthsAgo(1), to: getTodayLocal() },
-  { label: "Last 3 Months", from: monthsAgo(3), to: getTodayLocal() },
   { label: "Last 6 Months", from: monthsAgo(6), to: getTodayLocal() },
 ];
 
@@ -29,11 +29,14 @@ export default function Payments() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [searchQuery, setSearchQuery] = useState("");
+  const [showDropdown, setShowDropdown] = useState(false);
   const [activePreset, setActivePreset] = useState("All Time");
   const [customFrom, setCustomFrom] = useState("");
   const [customTo, setCustomTo] = useState("");
   const [showCustomRange, setShowCustomRange] = useState(false);
+  const [generatingVillage, setGeneratingVillage] = useState(null);
   const navigate = useNavigate();
+  const searchBoxRef = useRef(null);
 
   const loadRecords = async (from, to) => {
     setLoading(true);
@@ -50,6 +53,17 @@ export default function Payments() {
 
   useEffect(() => {
     loadRecords();
+  }, []);
+
+  // Close dropdown on outside click
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (searchBoxRef.current && !searchBoxRef.current.contains(e.target)) {
+        setShowDropdown(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
   const handlePreset = (preset) => {
@@ -72,6 +86,81 @@ export default function Payments() {
       return name.includes(q) || village.includes(q);
     });
   }, [records, searchQuery]);
+
+  // Dropdown suggestions — farmers matching the query, and distinct villages
+  // matching the query (villages are what drive PDF generation).
+  const { farmerSuggestions, villageSuggestions } = useMemo(() => {
+    const q = searchQuery.trim().toLowerCase();
+    if (!q) return { farmerSuggestions: [], villageSuggestions: [] };
+
+    const farmerMatches = [];
+    const villageMap = new Map();
+
+    records.forEach((r) => {
+      const name = r.farmer.fullName?.toLowerCase() || "";
+      const village = r.farmer.village || "";
+      const villageLower = village.toLowerCase();
+
+      if (name.includes(q)) {
+        farmerMatches.push(r);
+      }
+
+      if (village && villageLower.includes(q)) {
+        if (!villageMap.has(village)) villageMap.set(village, new Set());
+        villageMap.get(village).add(r.farmer._id);
+      }
+    });
+
+    const villages = Array.from(villageMap.entries()).map(([village, farmerIds]) => ({
+      village,
+      count: farmerIds.size,
+    }));
+
+    return { farmerSuggestions: farmerMatches.slice(0, 5), villageSuggestions: villages.slice(0, 5) };
+  }, [records, searchQuery]);
+
+  // Builds a PDF for one village: unique pending farmers, showing only
+  // Name, Village, Mobile — not individual payment history.
+  const handleGenerateVillagePdf = (village) => {
+    setGeneratingVillage(village);
+    try {
+      const seen = new Set();
+      const farmersInVillage = [];
+
+      records.forEach((r) => {
+        if (r.farmer.village === village && !seen.has(r.farmer._id)) {
+          seen.add(r.farmer._id);
+          farmersInVillage.push(r.farmer);
+        }
+      });
+
+      const doc = new jsPDF();
+
+      doc.setFontSize(16);
+      doc.text(`${village} — Pending Farmers`, 14, 18);
+
+      doc.setFontSize(10);
+      doc.setTextColor(100);
+      doc.text(`Generated: ${formatDate(new Date())}`, 14, 25);
+      doc.text(`Total Farmers: ${farmersInVillage.length}`, 14, 30);
+
+      const rows = farmersInVillage.map((f) => [f.fullName || "-", f.village || "-", f.mobile || "-"]);
+
+      autoTable(doc, {
+        startY: 36,
+        head: [["Farmer Name", "Village", "Mobile No."]],
+        body: rows,
+        styles: { fontSize: 10 },
+        headStyles: { fillColor: [76, 154, 90] },
+      });
+
+      doc.save(`${village.replace(/\s+/g, "_")}_pending_farmers.pdf`);
+      setShowDropdown(false);
+      setSearchQuery("");
+    } finally {
+      setGeneratingVillage(null);
+    }
+  };
 
   if (error) {
     return (
@@ -117,7 +206,7 @@ export default function Payments() {
       {/* Content Area */}
       <div className="px-5 -mt-8 relative z-10 max-w-md mx-auto">
         {/* Date range presets */}
-        <div className="flex gap-2 mb-3 overflow-x-auto pb-1 -mx-1 px-1">
+        <div className="flex justify-center gap-5 mb-3 overflow-x-auto pb-1 -mx-1 px-1">
           {PRESETS.map((p) => (
             <button
               key={p.label}
@@ -185,28 +274,113 @@ export default function Payments() {
           </div>
         )}
 
-        {/* Search bar */}
+        {/* Search bar with dropdown — farmer name / village suggestions */}
         {!loading && records.length > 0 && (
-          <div className="bg-white rounded-2xl shadow-sm border border-black/[0.04] p-3 mb-4 flex items-center gap-2.5 sticky top-3 z-20">
-            <svg viewBox="0 0 24 24" className="h-4.5 w-4.5 text-[#1F2A22]/30 shrink-0" fill="none" stroke="currentColor" strokeWidth="2">
-              <circle cx="11" cy="11" r="7" strokeLinecap="round" strokeLinejoin="round" />
-              <path d="M21 21l-4.35-4.35" strokeLinecap="round" strokeLinejoin="round" />
-            </svg>
-            <input
-              type="text"
-              name="paymentSearch"
-              autoComplete="off"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search by farmer name or village"
-              className="flex-1 bg-transparent text-sm text-[#1F2A22] placeholder-[#1F2A22]/30 focus:outline-none"
-            />
-            {searchQuery && (
-              <button type="button" onClick={() => setSearchQuery("")} className="text-[#1F2A22]/30 hover:text-[#1F2A22]/60 shrink-0">
-                <svg viewBox="0 0 24 24" className="h-4.5 w-4.5" fill="none" stroke="currentColor" strokeWidth="2">
-                  <path d="M18 6L6 18M6 6l12 12" strokeLinecap="round" strokeLinejoin="round" />
-                </svg>
-              </button>
+          <div ref={searchBoxRef} className="relative mb-4 sticky top-3 z-20">
+            <div className="bg-white rounded-2xl shadow-sm border border-black/[0.04] p-3 flex items-center gap-2.5">
+              <svg viewBox="0 0 24 24" className="h-4.5 w-4.5 text-[#1F2A22]/30 shrink-0" fill="none" stroke="currentColor" strokeWidth="2">
+                <circle cx="11" cy="11" r="7" strokeLinecap="round" strokeLinejoin="round" />
+                <path d="M21 21l-4.35-4.35" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+              <input
+                type="text"
+                name="paymentSearch"
+                autoComplete="off"
+                value={searchQuery}
+                onChange={(e) => {
+                  setSearchQuery(e.target.value);
+                  setShowDropdown(true);
+                }}
+                onFocus={() => setShowDropdown(true)}
+                placeholder="Type name or village..."
+                className="flex-1 bg-transparent text-sm text-[#1F2A22] placeholder-[#1F2A22]/30 focus:outline-none"
+              />
+              {searchQuery && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSearchQuery("");
+                    setShowDropdown(false);
+                  }}
+                  className="text-[#1F2A22]/30 hover:text-[#1F2A22]/60 shrink-0"
+                >
+                  <svg viewBox="0 0 24 24" className="h-4.5 w-4.5" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path d="M18 6L6 18M6 6l12 12" strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
+                </button>
+              )}
+            </div>
+
+            {/* Dropdown Menu — villages generate a PDF, farmers jump to their page */}
+            {showDropdown && searchQuery.trim().length >= 1 && (
+              <div className="absolute z-50 w-full bg-white border border-black/[0.04] rounded-2xl mt-2 shadow-xl shadow-black/[0.05] max-h-72 overflow-y-auto animate-in slide-in-from-top-2 fade-in duration-200">
+                {villageSuggestions.length === 0 && farmerSuggestions.length === 0 && (
+                  <div className="px-4 py-6 text-center">
+                    <p className="text-[14px] font-medium text-[#1F2A22]/50">No matches found</p>
+                  </div>
+                )}
+
+                {villageSuggestions.length > 0 && (
+                  <div>
+                    <p className="px-4 pt-3 pb-1 text-[10px] font-bold uppercase tracking-wide text-[#1F2A22]/40">
+                      Villages
+                    </p>
+                    {villageSuggestions.map((v) => (
+                      <div
+                        key={v.village}
+                        className="w-full px-4 py-3 border-b border-black/5 last:border-b-0 flex items-center gap-3"
+                      >
+                        <div className="h-8 w-8 rounded-full bg-[#E9F3E9] flex items-center justify-center text-[#4C9A5A] shrink-0">
+                          <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none">
+                            <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                          </svg>
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-[14px] font-semibold text-[#1F2A22] truncate">{v.village}</p>
+                          <p className="text-[11px] text-[#1F2A22]/40">{v.count} pending farmer{v.count !== 1 ? "s" : ""}</p>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => handleGenerateVillagePdf(v.village)}
+                          disabled={generatingVillage === v.village}
+                          className="shrink-0 text-[11px] font-bold uppercase tracking-wide text-white bg-[#4C9A5A] rounded-lg px-3 py-2 disabled:opacity-50 active:scale-95 transition-all"
+                        >
+                          {generatingVillage === v.village ? "Generating…" : "Generate PDF"}
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {farmerSuggestions.length > 0 && (
+                  <div>
+                    <p className="px-4 pt-3 pb-1 text-[10px] font-bold uppercase tracking-wide text-[#1F2A22]/40">
+                      Farmers
+                    </p>
+                    {farmerSuggestions.map((r) => (
+                      <button
+                        key={r._id}
+                        type="button"
+                        onClick={() => {
+                          setShowDropdown(false);
+                          navigate(`/farmers/${r.farmer._id}`);
+                        }}
+                        className="w-full text-left px-4 py-3 active:bg-black/[0.02] hover:bg-black/[0.01] border-b border-black/5 last:border-b-0 transition-colors flex items-center gap-3"
+                      >
+                        <div className="h-8 w-8 rounded-full bg-[#F6F2E9] flex items-center justify-center text-[#1F2A22]/50 shrink-0">
+                          <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none">
+                            <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2M12 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                          </svg>
+                        </div>
+                        <div>
+                          <p className="text-[14px] font-semibold text-[#1F2A22]">{r.farmer.fullName}</p>
+                          <p className="text-[11px] text-[#1F2A22]/40">{r.farmer.village || "—"}</p>
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
             )}
           </div>
         )}
