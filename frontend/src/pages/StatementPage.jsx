@@ -12,6 +12,7 @@ export default function StatementPage() {
 
   const [farmer, setFarmer] = useState(null);
   const [services, setServices] = useState([]);
+  const [payments, setPayments] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
@@ -26,6 +27,7 @@ export default function StatementPage() {
       .then((res) => {
         setFarmer(res.data.farmer);
         setServices(res.data.services);
+        setPayments(res.data.payments || []);
       })
       .catch((err) => {
         setError(err.response?.data?.message || "Failed to load statement");
@@ -123,7 +125,7 @@ export default function StatementPage() {
           </div>
         </div>
 
-        {/* Service History (read-only) */}
+        {/* Service History */}
         <div className="mt-8">
           <div className="flex items-center justify-between mb-3 px-1">
             <h2 className="text-lg font-bold text-[#1F2A22] tracking-tight">Service History</h2>
@@ -144,6 +146,21 @@ export default function StatementPage() {
                   <p className="text-sm font-bold text-[#1F2A22]">{s.cropName || "-"}</p>
                   <p className="text-xs font-semibold text-[#1F2A22]/50">{formatDate(s.serviceDate)}</p>
                 </div>
+
+                {/* Area: Acres + Gunthe */}
+                <div className="flex flex-wrap gap-1.5 mb-2.5">
+                  {(s.acres != null && s.acres !== "") && (
+                    <span className="text-[11px] font-semibold text-[#1F2A22]/60 bg-[#F6F2E9] px-2 py-0.5 rounded-md">
+                      {s.acres} एकर
+                    </span>
+                  )}
+                  {(s.are != null && s.are !== "") && (
+                    <span className="text-[11px] font-semibold text-[#1F2A22]/60 bg-[#F6F2E9] px-2 py-0.5 rounded-md">
+                      {s.are} गुंठे
+                    </span>
+                  )}
+                </div>
+
                 <div className="grid grid-cols-3 gap-2 text-xs">
                   <div>
                     <p className="text-[#1F2A22]/45 font-bold uppercase text-[9px] mb-0.5">Bill</p>
@@ -158,6 +175,43 @@ export default function StatementPage() {
                     <p className="font-bold text-[#D97706]">{formatCurrency(s.pendingAmount)}</p>
                   </div>
                 </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Payment History */}
+        <div className="mt-8">
+          <div className="flex items-center justify-between mb-3 px-1">
+            <h2 className="text-lg font-bold text-[#1F2A22] tracking-tight">Payment History</h2>
+            {payments.length > 0 && (
+              <span className="text-[11px] font-bold uppercase tracking-wide text-[#4C9A5A] bg-[#E9F3E9] rounded-lg px-2.5 py-1 shadow-sm border border-[#4C9A5A]/10">
+                {payments.length} Total
+              </span>
+            )}
+          </div>
+
+          <div className="bg-white rounded-[1.5rem] shadow-sm border border-black/[0.04] overflow-hidden divide-y divide-black/[0.04]">
+            {payments.length === 0 && (
+              <p className="text-sm text-[#1F2A22]/50 text-center py-8">No payments recorded yet</p>
+            )}
+            {payments.map((p) => (
+              <div key={p._id} className="p-4 flex justify-between items-center">
+                <div>
+                  <p className="text-sm font-bold text-[#1F2A22]">
+                    {p.type === "Discount" ? "Discount" : "Payment"} · {p.mode}
+                  </p>
+                  <p className="text-xs font-medium text-[#1F2A22]/50 mt-0.5">
+                    {formatDate(p.paidOn)}
+                    {p.serviceRecord?.cropName ? ` • ${p.serviceRecord.cropName}` : ""}
+                  </p>
+                  {p.note && (
+                    <p className="text-xs text-[#1F2A22]/40 mt-0.5">{p.note}</p>
+                  )}
+                </div>
+                <p className={`text-sm font-black ${p.type === "Discount" ? "text-[#D97706]" : "text-[#4C9A5A]"}`}>
+                  {formatCurrency(p.amount)}
+                </p>
               </div>
             ))}
           </div>

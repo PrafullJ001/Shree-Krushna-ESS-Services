@@ -1,6 +1,7 @@
 ﻿const Farmer = require("../models/Farmer");
 const generateFarmerCode = require("../utils/generateFarmerCode");
 const ServiceRecord = require("../models/ServiceRecord");
+const Payment = require("../models/Payment");
 
 exports.searchFarmers = async (req, res) => {
   try {
@@ -360,6 +361,28 @@ exports.getPublicStatement = async (req, res) => {
     });
 
     res.json({ farmer, services });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+};
+
+exports.getPublicStatement = async (req, res) => {
+  try {
+    const farmer = await Farmer.findById(req.params.id);
+
+    if (!farmer) {
+      return res.status(404).json({ message: "Farmer not found" });
+    }
+
+    const services = await ServiceRecord.find({ farmer: farmer._id }).sort({
+      serviceDate: -1,
+    });
+
+    const payments = await Payment.find({ farmer: farmer._id })
+      .sort({ paidOn: -1 })
+      .populate("serviceRecord", "cropName billNo");
+
+    res.json({ farmer, services, payments });
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
