@@ -4,7 +4,7 @@ import { getPublicStatement } from "../api/farmerApi";
 import Spinner from "../components/common/Spinner";
 import { formatCurrency } from "../utils/formatCurrency";
 import { formatDate } from "../utils/formatDate";
-import { BUSINESS_NAME } from "../constants/business";
+import { BUSINESS_NAME, BUSINESS_CONTACT, BUSINESS_PHONEPE } from "../constants/business";
 
 export default function StatementPage() {
   const { slugId } = useParams();
@@ -84,7 +84,7 @@ export default function StatementPage() {
 
   return (
     <div className="min-h-screen bg-[#F6F2E9] pb-16 font-sans selection:bg-[#4C9A5A]/20">
-      {/* Header — modernized business name badge */}
+      {/* Header — modernized business identity card */}
       <div
         className="relative px-6 pt-10 pb-20 overflow-hidden rounded-b-[2.5rem] shadow-sm"
         style={{ backgroundImage: "linear-gradient(180deg, #1F3D2B 0%, #234730 100%)" }}
@@ -94,9 +94,9 @@ export default function StatementPage() {
           style={{ backgroundImage: "repeating-linear-gradient(115deg, #ffffff 0px, #ffffff 1px, transparent 1px, transparent 14px)" }}
         />
         <div className="relative z-10">
-          <div className="inline-flex items-center gap-2 bg-white/10 border border-white/15 backdrop-blur-md rounded-2xl px-3.5 py-2 mb-4">
-            <div className="h-7 w-7 rounded-lg bg-[#4C9A5A] flex items-center justify-center shrink-0">
-              <svg viewBox="0 0 24 24" className="h-4 w-4 text-white" fill="none">
+          <div className="inline-flex items-center gap-3 bg-white/10 border border-white/15 backdrop-blur-md rounded-2xl px-4 py-3 mb-4 shadow-lg shadow-black/10">
+            <div className="h-10 w-10 rounded-xl bg-[#4C9A5A] flex items-center justify-center shrink-0 shadow-inner">
+              <svg viewBox="0 0 24 24" className="h-5 w-5 text-white" fill="none">
                 <path d="M12 2c0 1.5-.8 2.3-1.6 3.1" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" fill="none" />
                 <circle cx="9.5" cy="7.5" r="1.7" fill="currentColor" />
                 <circle cx="13" cy="7.2" r="1.7" fill="currentColor" />
@@ -108,7 +108,30 @@ export default function StatementPage() {
                 <circle cx="11.5" cy="17.2" r="1.7" fill="currentColor" />
               </svg>
             </div>
-            <p className="text-white text-[13px] font-bold tracking-tight">{BUSINESS_NAME}</p>
+
+            <div className="flex flex-col gap-1">
+              <p className="text-white text-[15px] font-bold tracking-tight leading-none">{BUSINESS_NAME}</p>
+
+              <div className="flex flex-col gap-0.5 mt-0.5">
+                {BUSINESS_CONTACT && (
+                  <div className="flex items-center gap-1.5">
+                    <svg viewBox="0 0 24 24" className="h-3 w-3 text-[#B9D9BE] shrink-0" fill="none" stroke="currentColor" strokeWidth="2">
+                      <path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07 19.5 19.5 0 01-6-6 19.79 19.79 0 01-3.07-8.67A2 2 0 014.11 2h3a2 2 0 012 1.72c.127.96.362 1.903.7 2.81a2 2 0 01-.45 2.11L8.09 9.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45c.907.338 1.85.573 2.81.7A2 2 0 0122 16.92z" strokeLinecap="round" strokeLinejoin="round" />
+                    </svg>
+                    <p className="text-[#B9D9BE] text-[11px] font-semibold tracking-wide leading-none">{BUSINESS_CONTACT}</p>
+                  </div>
+                )}
+                {BUSINESS_PHONEPE && (
+                  <div className="flex items-center gap-1.5">
+                    <svg viewBox="0 0 24 24" className="h-3 w-3 text-[#B9D9BE] shrink-0" fill="none" stroke="currentColor" strokeWidth="2">
+                      <rect x="3" y="4" width="18" height="16" rx="2" strokeLinecap="round" strokeLinejoin="round" />
+                      <path d="M3 10h18M8 2v4M16 2v4" strokeLinecap="round" strokeLinejoin="round" />
+                    </svg>
+                    <p className="text-[#B9D9BE] text-[11px] font-semibold tracking-wide leading-none">PhonePe: {BUSINESS_PHONEPE}</p>
+                  </div>
+                )}
+              </div>
+            </div>
           </div>
 
           <h1 className="text-xl font-bold text-white tracking-tight">Account Statement</h1>

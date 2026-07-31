@@ -19,6 +19,13 @@ const monthsAgo = (n) => {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 };
 
+// jsPDF's default font has no ₹ glyph — it prints as broken spaced characters.
+// Use "Rs." inside PDFs only; on-screen formatCurrency (₹) is untouched.
+const formatCurrencyForPdf = (amount) => {
+  const value = Number(amount) || 0;
+  return `Rs. ${value.toLocaleString("en-IN")}`;
+};
+
 const PRESETS = [
   { label: "All Time", from: "", to: "" },
   { label: "Last 6 Months", from: monthsAgo(6), to: getTodayLocal() },
@@ -35,6 +42,7 @@ export default function Payments() {
   const [customTo, setCustomTo] = useState("");
   const [showCustomRange, setShowCustomRange] = useState(false);
   const [generatingVillage, setGeneratingVillage] = useState(null);
+  const [generatingAll, setGeneratingAll] = useState(false);
   const navigate = useNavigate();
   const searchBoxRef = useRef(null);
 
@@ -119,20 +127,40 @@ export default function Payments() {
     return { farmerSuggestions: farmerMatches.slice(0, 5), villageSuggestions: villages.slice(0, 5) };
   }, [records, searchQuery]);
 
-  // Builds a PDF for one village: unique pending farmers, showing only
-  // Name, Village, Mobile — not individual payment history.
+  // Aggregates all pending records for a single farmer into one row:
+  // total bill, collected amount, and pending amount, all in rupees.
+  const buildFarmerAggregates = (recordsForVillage) => {
+    const farmerMap = new Map();
+
+    recordsForVillage.forEach((r) => {
+      const farmerId = r.farmer._id;
+      if (!farmerMap.has(farmerId)) {
+        farmerMap.set(farmerId, {
+          fullName: r.farmer.fullName || "-",
+          village: r.farmer.village || "-",
+          mobile: r.farmer.mobile || "-",
+          totalAmount: 0,
+          collectedAmount: 0,
+          pendingAmount: 0,
+        });
+      }
+      const entry = farmerMap.get(farmerId);
+      entry.totalAmount += Number(r.totalBill) || 0;
+      entry.collectedAmount += Number(r.amountPaid) || 0;
+      entry.pendingAmount += Number(r.pendingAmount) || 0;
+    });
+
+    return Array.from(farmerMap.values());
+  };
+
+  // Builds a PDF for one village: unique pending farmers, showing
+  // Name, Mobile, Total Bill, Collected, Pending — all amounts in rupees.
   const handleGenerateVillagePdf = (village) => {
     setGeneratingVillage(village);
     try {
-      const seen = new Set();
-      const farmersInVillage = [];
-
-      records.forEach((r) => {
-        if (r.farmer.village === village && !seen.has(r.farmer._id)) {
-          seen.add(r.farmer._id);
-          farmersInVillage.push(r.farmer);
-        }
-      });
+      const recordsForVillage = records.filter((r) => r.farmer.village === village);
+      const farmersInVillage = buildFarmerAggregates(recordsForVillage);
+      const villageTotalPending = farmersInVillage.reduce((sum, f) => sum + f.pendingAmount, 0);
 
       const doc = new jsPDF();
 
@@ -143,14 +171,21 @@ export default function Payments() {
       doc.setTextColor(100);
       doc.text(`Generated: ${formatDate(new Date())}`, 14, 25);
       doc.text(`Total Farmers: ${farmersInVillage.length}`, 14, 30);
+      doc.text(`Village Total Pending: ${formatCurrencyForPdf(villageTotalPending)}`, 14, 35);
 
-      const rows = farmersInVillage.map((f) => [f.fullName || "-", f.village || "-", f.mobile || "-"]);
+      const rows = farmersInVillage.map((f) => [
+        f.fullName,
+        f.mobile,
+        formatCurrencyForPdf(f.totalAmount),
+        formatCurrencyForPdf(f.collectedAmount),
+        formatCurrencyForPdf(f.pendingAmount),
+      ]);
 
       autoTable(doc, {
-        startY: 36,
-        head: [["Farmer Name", "Village", "Mobile No."]],
+        startY: 40,
+        head: [["Farmer Name", "Mobile No.", "Total Bill", "Collected", "Pending"]],
         body: rows,
-        styles: { fontSize: 10 },
+        styles: { fontSize: 9 },
         headStyles: { fillColor: [76, 154, 90] },
       });
 
@@ -160,6 +195,68 @@ export default function Payments() {
       setSearchQuery("");
     } finally {
       setGeneratingVillage(null);
+    }
+  };
+
+  // Builds ONE combined PDF covering every village currently loaded.
+  // Villages are kept in separate sections (not mixed together) and are
+  // ordered from highest total pending amount to lowest.
+  const handleGenerateAllPdf = () => {
+    setGeneratingAll(true);
+    try {
+      const villageMap = new Map();
+      records.forEach((r) => {
+        const village = r.farmer.village || "Unknown";
+        if (!villageMap.has(village)) villageMap.set(village, []);
+        villageMap.get(village).push(r);
+      });
+
+      const villageSummaries = Array.from(villageMap.entries()).map(([village, recordsForVillage]) => {
+        const farmers = buildFarmerAggregates(recordsForVillage);
+        const villageTotalPending = farmers.reduce((sum, f) => sum + f.pendingAmount, 0);
+        return { village, farmers, villageTotalPending };
+      });
+
+      // Most pending village first, then descending.
+      villageSummaries.sort((a, b) => b.villageTotalPending - a.villageTotalPending);
+
+      const doc = new jsPDF();
+      let isFirstPage = true;
+
+      villageSummaries.forEach(({ village, farmers, villageTotalPending }) => {
+        if (!isFirstPage) doc.addPage();
+        isFirstPage = false;
+
+        doc.setFontSize(16);
+        doc.text(`${village} — Pending Farmers`, 14, 18);
+
+        doc.setFontSize(10);
+        doc.setTextColor(100);
+        doc.text(`Generated: ${formatDate(new Date())}`, 14, 25);
+        doc.text(`Total Farmers: ${farmers.length}`, 14, 30);
+        doc.text(`Village Total Pending: ${formatCurrencyForPdf(villageTotalPending)}`, 14, 35);
+
+        const rows = farmers.map((f) => [
+          f.fullName,
+          f.mobile,
+          formatCurrencyForPdf(f.totalAmount),
+          formatCurrencyForPdf(f.collectedAmount),
+          formatCurrencyForPdf(f.pendingAmount),
+        ]);
+
+        autoTable(doc, {
+          startY: 40,
+          head: [["Farmer Name", "Mobile No.", "Total Bill", "Collected", "Pending"]],
+          body: rows,
+          styles: { fontSize: 9 },
+          headStyles: { fillColor: [76, 154, 90] },
+        });
+      });
+
+      const fileDate = getTodayLocal();
+      doc.save(`All_Villages_Pending_${fileDate}.pdf`);
+    } finally {
+      setGeneratingAll(false);
     }
   };
 
@@ -206,13 +303,14 @@ export default function Payments() {
 
       {/* Content Area */}
       <div className="px-5 -mt-8 relative z-10 max-w-md mx-auto">
-        {/* Date range presets */}
-        <div className="flex justify-center gap-5 mb-3">
+        {/* All 4 controls in a single row, evenly sized, scrolls horizontally
+            on very narrow screens instead of wrapping/breaking the layout */}
+        <div className="flex items-center gap-1.5 mb-3 overflow-x-auto no-scrollbar -mx-1 px-1 pb-1">
           {PRESETS.map((p) => (
             <button
               key={p.label}
               onClick={() => handlePreset(p)}
-              className={`shrink-0 px-3.5 py-2 rounded-xl text-sm font-bold transition-all ${
+              className={`shrink-0 flex-1 min-w-[76px] px-2 py-2 rounded-xl text-[10.5px] leading-tight font-bold whitespace-nowrap transition-all ${
                 activePreset === p.label
                   ? "bg-[#2B5439] text-white shadow-sm"
                   : "bg-white text-[#1F2A22]/60 border border-black/[0.06]"
@@ -223,21 +321,35 @@ export default function Payments() {
           ))}
 
           <button
-  onClick={() => {
-    setShowCustomRange((prev) => {
-      const next = !prev;
-      if (next) setActivePreset("Custom");
-      return next;
-    });
-  }}
-  className={`shrink-0 px-3.5 py-2 rounded-xl text-sm font-bold transition-all ${
-    activePreset === "Custom"
-      ? "bg-[#2B5439] text-white shadow-sm"
-      : "bg-white text-[#1F2A22]/60 border border-black/[0.06]"
-  }`}
->
-  Custom Range
-</button>
+            onClick={() => {
+              setShowCustomRange((prev) => {
+                const next = !prev;
+                if (next) setActivePreset("Custom");
+                return next;
+              });
+            }}
+            className={`shrink-0 flex-1 min-w-[76px] px-2 py-2 rounded-xl text-[10.5px] leading-tight font-bold whitespace-nowrap transition-all ${
+              activePreset === "Custom"
+                ? "bg-[#2B5439] text-white shadow-sm"
+                : "bg-white text-[#1F2A22]/60 border border-black/[0.06]"
+            }`}
+          >
+            Custom
+          </button>
+
+          {!loading && records.length > 0 && (
+            <button
+              onClick={handleGenerateAllPdf}
+              disabled={generatingAll}
+              className={`shrink-0 flex-1 min-w-[76px] px-2 py-2 rounded-xl text-[10.5px] leading-tight font-bold whitespace-nowrap transition-all border disabled:opacity-50 active:scale-95 ${
+                generatingAll
+                  ? "bg-[#2B5439] text-white border-[#2B5439] shadow-sm"
+                  : "bg-white text-[#1F2A22]/60 border-black/[0.06] hover:bg-[#2B5439] hover:text-white hover:border-[#2B5439] active:bg-[#2B5439] active:text-white"
+              }`}
+            >
+              {generatingAll ? "Generating…" : "Generate All"}
+            </button>
+          )}
         </div>
 
         {showCustomRange && (
