@@ -1,1 +1,1 @@
-export const BUSINESS_NAME = "Shree Krishna ESS Spraying Service";
+export const BUSINESS_NAME = "Shree Krishna ESS Spraying Services Pimpri\nContact No- 9423068234\nPhonePe No- 9637972009";
