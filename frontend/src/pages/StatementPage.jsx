@@ -64,8 +64,12 @@ export default function StatementPage() {
   const totalCollected = services.reduce((sum, s) => sum + Number(s.amountPaid || 0), 0);
   const totalPending = services.reduce((sum, s) => sum + Number(s.pendingAmount || 0), 0);
 
+  // Only unpaid/partially-paid services go into the Service History list
+  const pendingServices = services.filter((s) => Number(s.pendingAmount || 0) > 0);
+
   return (
     <div className="min-h-screen bg-[#F6F2E9] pb-16 font-sans selection:bg-[#4C9A5A]/20">
+      {/* Header — modernized business name badge */}
       <div
         className="relative px-6 pt-10 pb-20 overflow-hidden rounded-b-[2.5rem] shadow-sm"
         style={{ backgroundImage: "linear-gradient(180deg, #1F3D2B 0%, #234730 100%)" }}
@@ -75,7 +79,23 @@ export default function StatementPage() {
           style={{ backgroundImage: "repeating-linear-gradient(115deg, #ffffff 0px, #ffffff 1px, transparent 1px, transparent 14px)" }}
         />
         <div className="relative z-10">
-          <p className="text-[#B9D9BE] text-xs font-bold uppercase tracking-widest mb-1">{BUSINESS_NAME}</p>
+          <div className="inline-flex items-center gap-2 bg-white/10 border border-white/15 backdrop-blur-md rounded-2xl px-3.5 py-2 mb-4">
+            <div className="h-7 w-7 rounded-lg bg-[#4C9A5A] flex items-center justify-center shrink-0">
+              <svg viewBox="0 0 24 24" className="h-4 w-4 text-white" fill="none">
+                <path d="M12 2c0 1.5-.8 2.3-1.6 3.1" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" fill="none" />
+                <circle cx="9.5" cy="7.5" r="1.7" fill="currentColor" />
+                <circle cx="13" cy="7.2" r="1.7" fill="currentColor" />
+                <circle cx="8" cy="10.8" r="1.7" fill="currentColor" />
+                <circle cx="11.5" cy="10.6" r="1.7" fill="currentColor" />
+                <circle cx="15" cy="10.5" r="1.7" fill="currentColor" />
+                <circle cx="9.7" cy="14" r="1.7" fill="currentColor" />
+                <circle cx="13.2" cy="14" r="1.7" fill="currentColor" />
+                <circle cx="11.5" cy="17.2" r="1.7" fill="currentColor" />
+              </svg>
+            </div>
+            <p className="text-white text-[13px] font-bold tracking-tight">{BUSINESS_NAME}</p>
+          </div>
+
           <h1 className="text-xl font-bold text-white tracking-tight">Account Statement</h1>
         </div>
       </div>
@@ -125,22 +145,22 @@ export default function StatementPage() {
           </div>
         </div>
 
-        {/* Service History */}
+        {/* Service History — pending services only */}
         <div className="mt-8">
           <div className="flex items-center justify-between mb-3 px-1">
-            <h2 className="text-lg font-bold text-[#1F2A22] tracking-tight">Service History</h2>
-            {services.length > 0 && (
-              <span className="text-[11px] font-bold uppercase tracking-wide text-[#4C9A5A] bg-[#E9F3E9] rounded-lg px-2.5 py-1 shadow-sm border border-[#4C9A5A]/10">
-                {services.length} Total
+            <h2 className="text-lg font-bold text-[#1F2A22] tracking-tight">Pending Services</h2>
+            {pendingServices.length > 0 && (
+              <span className="text-[11px] font-bold uppercase tracking-wide text-[#D97706] bg-[#FEF3C7] rounded-lg px-2.5 py-1 shadow-sm border border-[#D97706]/10">
+                {pendingServices.length} Pending
               </span>
             )}
           </div>
 
           <div className="bg-white rounded-[1.5rem] shadow-sm border border-black/[0.04] overflow-hidden divide-y divide-black/[0.04]">
-            {services.length === 0 && (
-              <p className="text-sm text-[#1F2A22]/50 text-center py-8">No service records yet</p>
+            {pendingServices.length === 0 && (
+              <p className="text-sm text-[#1F2A22]/50 text-center py-8">No pending services — all caught up ✅</p>
             )}
-            {services.map((s) => (
+            {pendingServices.map((s) => (
               <div key={s._id} className="p-4">
                 <div className="flex justify-between items-start mb-2">
                   <p className="text-sm font-bold text-[#1F2A22]">{s.cropName || "-"}</p>
@@ -180,7 +200,7 @@ export default function StatementPage() {
           </div>
         </div>
 
-        {/* Payment History */}
+        {/* Payment History — unchanged, still shows all payments */}
         <div className="mt-8">
           <div className="flex items-center justify-between mb-3 px-1">
             <h2 className="text-lg font-bold text-[#1F2A22] tracking-tight">Payment History</h2>
