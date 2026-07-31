@@ -20,3 +20,5 @@ export const updateFarmer = (id, farmerData) =>
 
 export const deleteFarmer = (id) =>
   axiosInstance.delete(`/farmers/${id}`);
+export const getPublicStatement = (id) =>
+  axiosInstance.get(`/public/farmers/${id}/statement`);

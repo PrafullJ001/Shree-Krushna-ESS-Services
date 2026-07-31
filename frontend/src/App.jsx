@@ -1,13 +1,7 @@
-﻿import {
-  BrowserRouter,
-  Routes,
-  Route,
-} from "react-router-dom";
-
+﻿import {BrowserRouter,Routes,Route,} from "react-router-dom";
 import { AuthProvider } from "./context/AuthContext";
 import ProtectedRoute from "./components/common/ProtectedRoute";
 import BottomNav from "./components/common/BottomNav";
-
 import Login from "./pages/Login";
 import ForgotPassword from "./pages/ForgotPassword";
 import OtpApprovals from "./pages/OtpApprovals";
@@ -19,6 +13,7 @@ import Payments from "./pages/Payments";
 import Profile from "./pages/Profile";
 import AddUser from "./pages/AddUser";
 import StaffPerformance from "./pages/StaffPerformance";
+import StatementPage from "./pages/StatementPage";
 
 function ProtectedLayout({ children }) {
   return (
@@ -42,6 +37,12 @@ export default function App() {
           <Route
             path="/forgot-password"
             element={<ForgotPassword />}
+          />
+
+          {/* PUBLIC: Statement link shared via reminder message — no login required */}
+          <Route
+            path="/statement/:slugId"
+            element={<StatementPage />}
           />
 
           <Route

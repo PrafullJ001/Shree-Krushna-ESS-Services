@@ -9,6 +9,7 @@ const serviceRoutes = require('./routes/serviceRoutes');
 const dashboardRoutes = require('./routes/dashboardRoutes');
 const settingsRoutes = require('./routes/settingsRoutes');
 const staffRoutes = require('./routes/staffRoutes');
+const publicRoutes = require('./routes/publicRoutes');
 
 const app = express();
 
@@ -27,6 +28,7 @@ app.use('/api/services', serviceRoutes);
 app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/settings', settingsRoutes);
 app.use('/api/staff', staffRoutes);
+app.use('/api/public', publicRoutes);
 
 app.use(notFound);
 app.use(errorHandler);

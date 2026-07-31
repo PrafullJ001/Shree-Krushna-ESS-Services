@@ -1,9 +1,12 @@
 import { useState } from "react";
 import { buildReminderMessage } from "../../utils/messageTemplates";
+import { buildStatementLink } from "../../utils/statementLink";
 import SendMessageButtons from "../common/SendMessageButtons";
 
 export default function ReminderButton({ farmer, totals }) {
   const [open, setOpen] = useState(false);
+
+  const messageWithLink = `${buildReminderMessage(farmer, totals)}\n\n📄 खाते तपशील पहा: ${buildStatementLink(farmer)}`;
 
   return (
     <div>
@@ -19,7 +22,7 @@ export default function ReminderButton({ farmer, totals }) {
 
       {open && (
         <div className="mt-3 bg-[#F6F2E9]/60 rounded-xl p-3.5">
-          <SendMessageButtons mobile={farmer.mobile} message={buildReminderMessage(farmer, totals)} />
+          <SendMessageButtons mobile={farmer.mobile} message={messageWithLink} />
         </div>
       )}
     </div>

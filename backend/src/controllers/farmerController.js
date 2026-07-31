@@ -345,3 +345,22 @@ exports.checkSimilarFarmers = async (
     });
   }
 };
+
+// PUBLIC — no auth. Used by the statement link sent in reminder messages.
+exports.getPublicStatement = async (req, res) => {
+  try {
+    const farmer = await Farmer.findById(req.params.id);
+
+    if (!farmer) {
+      return res.status(404).json({ message: "Farmer not found" });
+    }
+
+    const services = await ServiceRecord.find({ farmer: farmer._id }).sort({
+      serviceDate: -1,
+    });
+
+    res.json({ farmer, services });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+};
