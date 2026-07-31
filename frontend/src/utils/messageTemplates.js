@@ -3,27 +3,27 @@ import { formatDate } from "./formatDate";
 import { BUSINESS_NAME } from "../constants/business";
 
 const statusLine = (paid, pending) => {
-  if (pending <= 0) return "Fully Paid ✅";
-  if (paid > 0) return "Partially Paid ⚠️";
-  return "Unpaid ❌";
+  if (pending <= 0) return "पूर्ण पेमेंट झाले ✅";
+  if (paid > 0) return "अंशतः पेमेंट झाले ⚠️";
+  return "पेमेंट बाकी आहे ❌";
 };
 
 export const buildServiceMessage = (farmer, service) => {
   const paid = Number(service.amountPaid || 0);
   const pending = Number(service.pendingAmount || 0);
 
-  return `Namaste ${farmer.fullName},
+  return `नमस्कार प्रिय शेतकरी ${farmer.fullName} जी 🙏,
 
-Spraying service completed successfully.
-Crop: ${service.cropName || "-"}
-Acres: ${service.acres || "-"}
-Date: ${formatDate(service.serviceDate)}
-Total Bill: ${formatCurrency(service.totalBill)}
-Total Amount Paid: ${formatCurrency(paid)}
-Remaining Pending: ${formatCurrency(pending)}
-Payment Status: ${statusLine(paid, pending)}
+🌾 फवारणी सेवा यशस्वीरित्या पूर्ण झाली आहे.
+🌱 पीक: ${service.cropName || "-"}
+📏 क्षेत्र (एकर): ${service.acres || "-"}
+📅 तारीख: ${formatDate(service.serviceDate)}
+💰 एकूण बिल: ${formatCurrency(service.totalBill)}
+✅ एकूण जमा रक्कम: ${formatCurrency(paid)}
+⏳ शिल्लक रक्कम: ${formatCurrency(pending)}
+📊 पेमेंट स्थिती: ${statusLine(paid, pending)}
 
-Thank you!
+धन्यवाद! 🙏
 ${BUSINESS_NAME}`;
 };
 
@@ -31,30 +31,30 @@ export const buildPaymentMessage = (farmer, service, paymentAmount, discountAmou
   const paid = Number(service.amountPaid || 0);
   const pending = Number(service.pendingAmount || 0);
 
-  return `Namaste ${farmer.fullName},
+  return `नमस्कार प्रिय शेतकरी ${farmer.fullName} जी 🙏,
 
-Payment received successfully.
-Payment Received: ${formatCurrency(paymentAmount)}
-${discountAmount > 0 ? `Discount Applied: ${formatCurrency(discountAmount)}\n` : ""}Total Bill: ${formatCurrency(service.totalBill)}
-Total Amount Paid: ${formatCurrency(paid)}
-Remaining Pending: ${formatCurrency(pending)}
-Payment Status: ${statusLine(paid, pending)}
+💵 पेमेंट यशस्वीरित्या मिळाले आहे.
+💵 मिळालेली रक्कम: ${formatCurrency(paymentAmount)}
+${discountAmount > 0 ? `🎁 सवलत लागू: ${formatCurrency(discountAmount)}\n` : ""}💰 एकूण बिल: ${formatCurrency(service.totalBill)}
+✅ एकूण जमा रक्कम: ${formatCurrency(paid)}
+⏳ शिल्लक रक्कम: ${formatCurrency(pending)}
+📊 पेमेंट स्थिती: ${statusLine(paid, pending)}
 
-Thank you!
+धन्यवाद! 🙏
 ${BUSINESS_NAME}`;
 };
 
 export const buildReminderMessage = (farmer, totals) => {
   const { totalBill, totalCollected, totalPending } = totals;
 
-  return `Namaste ${farmer.fullName},
+  return `नमस्कार प्रिय शेतकरी ${farmer.fullName} जी 🙏,
 
-This is a reminder of your account summary with us:
-Total Billed: ${formatCurrency(totalBill)}
-Total Paid: ${formatCurrency(totalCollected)}
-Pending Amount: ${formatCurrency(totalPending)}
+🔔 ही तुमच्या खात्याच्या स्थितीबद्दल आठवण आहे:
+💰 एकूण बिल: ${formatCurrency(totalBill)}
+✅ एकूण भरलेली रक्कम: ${formatCurrency(totalCollected)}
+⏳ शिल्लक रक्कम: ${formatCurrency(totalPending)}
 
-${totalPending > 0 ? "Kindly clear the pending amount at your earliest convenience." : "Your account is fully settled. Thank you!"}
+${totalPending > 0 ? "🙏 कृपया लवकरात लवकर शिल्लक रक्कम भरावी." : "🎉 तुमचे खाते पूर्णपणे पूर्ण झाले आहे. धन्यवाद!"}
 
 ${BUSINESS_NAME}`;
 };
@@ -62,30 +62,30 @@ ${BUSINESS_NAME}`;
 export const buildBulkPaymentMessage = (farmer, paymentAmount, totals) => {
   const { totalBill, totalCollected, totalPending } = totals;
 
-  return `Namaste ${farmer.fullName},
+  return `नमस्कार प्रिय शेतकरी ${farmer.fullName} जी 🙏,
 
-Payment received successfully.
-Payment Received: ${formatCurrency(paymentAmount)}
-Total Billed: ${formatCurrency(totalBill)}
-Total Paid: ${formatCurrency(totalCollected)}
-Remaining Pending: ${formatCurrency(totalPending)}
-Payment Status: ${totalPending > 0 ? "Partially Paid ⚠️" : "Fully Paid ✅"}
+💵 पेमेंट यशस्वीरित्या मिळाले आहे.
+💵 मिळालेली रक्कम: ${formatCurrency(paymentAmount)}
+💰 एकूण बिल: ${formatCurrency(totalBill)}
+✅ एकूण भरलेली रक्कम: ${formatCurrency(totalCollected)}
+⏳ शिल्लक रक्कम: ${formatCurrency(totalPending)}
+📊 पेमेंट स्थिती: ${totalPending > 0 ? "अंशतः पेमेंट झाले ⚠️" : "पूर्ण पेमेंट झाले ✅"}
 
-Thank you!
+धन्यवाद! 🙏
 ${BUSINESS_NAME}`;
 };
 
 export const buildSettleAllMessage = (farmer, totals) => {
   const { totalBill, totalCollected } = totals;
 
-  return `Namaste ${farmer.fullName},
+  return `नमस्कार प्रिय शेतकरी ${farmer.fullName} जी 🙏,
 
-Your account has been fully settled.
-Total Billed: ${formatCurrency(totalBill)}
-Total Paid: ${formatCurrency(totalCollected)}
-Remaining Pending: ${formatCurrency(0)}
-Payment Status: Fully Paid ✅
+🎉 तुमचे खाते पूर्णपणे सेटल झाले आहे.
+💰 एकूण बिल: ${formatCurrency(totalBill)}
+✅ एकूण भरलेली रक्कम: ${formatCurrency(totalCollected)}
+⏳ शिल्लक रक्कम: ${formatCurrency(0)}
+📊 पेमेंट स्थिती: पूर्ण पेमेंट झाले ✅
 
-Thank you!
+धन्यवाद! 🙏
 ${BUSINESS_NAME}`;
 };
