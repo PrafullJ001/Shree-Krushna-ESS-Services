@@ -344,35 +344,60 @@ exports.getPaymentsForFarmer = async (
   }
 };
 
-exports.getPendingPayments = async (
-  req,
-  res
-) => {
+// -------------------------------------------------------
+// PENDING PAYMENTS — supports an optional flexible date range
+// (?from=YYYY-MM-DD&to=YYYY-MM-DD) instead of rigid calendar
+// years, since a spraying season can span across two calendar
+// years (e.g. Nov to March) and year-based buckets caused
+// confusion. With no range given, returns everything pending.
+// -------------------------------------------------------
+exports.getPendingPayments = async (req, res) => {
   try {
-    const records =
-      await ServiceRecord.find({
-        paymentStatus: {
-          $in: [
-            "Unpaid",
-            "Partially Paid",
-          ],
-        },
-      })
-        .populate(
-          "farmer",
-          "fullName mobile village"
-        )
-        .populate(
-          "createdBy",
-          "name role"
-        )
-        .sort({ updatedAt: -1 });
+    const { from, to } = req.query;
 
-    res.json(records);
+    const query = {
+      paymentStatus: { $in: ["Unpaid", "Partially Paid"] },
+    };
+
+    if (from || to) {
+      query.serviceDate = {};
+      if (from) {
+        const fromDate = new Date(from);
+        if (!isNaN(fromDate.getTime())) query.serviceDate.$gte = fromDate;
+      }
+      if (to) {
+        // include the entire "to" day, not just midnight
+        const toDate = new Date(to);
+        if (!isNaN(toDate.getTime())) {
+          toDate.setHours(23, 59, 59, 999);
+          query.serviceDate.$lte = toDate;
+        }
+      }
+    }
+
+    const records = await ServiceRecord.find(query)
+      .populate("farmer", "fullName mobile village")
+      .populate("createdBy", "name role")
+      .sort({ updatedAt: -1 });
+
+    res.json({ records });
   } catch (err) {
     res.status(500).json({
       message: err.message,
     });
+  }
+};
+
+exports.getPendingYears = async (req, res) => {
+  try {
+    const years = await ServiceRecord.aggregate([
+      { $match: { paymentStatus: { $in: ["Unpaid", "Partially Paid"] } } },
+      { $group: { _id: { $year: "$serviceDate" } } },
+      { $sort: { _id: -1 } },
+    ]);
+    res.json(years.map((y) => y._id));
+  } catch (err) {
+    res.status(500).json({ message: err.message });
   }
 };
 
