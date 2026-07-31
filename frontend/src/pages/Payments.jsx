@@ -154,7 +154,8 @@ export default function Payments() {
         headStyles: { fillColor: [76, 154, 90] },
       });
 
-      doc.save(`${village.replace(/\s+/g, "_")}_pending_farmers.pdf`);
+      const fileDate = getTodayLocal();
+      doc.save(`${village.replace(/\s+/g, "_")}_pending_farmers_${fileDate}.pdf`);
       setShowDropdown(false);
       setSearchQuery("");
     } finally {
@@ -206,7 +207,7 @@ export default function Payments() {
       {/* Content Area */}
       <div className="px-5 -mt-8 relative z-10 max-w-md mx-auto">
         {/* Date range presets */}
-        <div className="flex justify-center gap-5 mb-3 overflow-x-auto pb-1 -mx-1 px-1">
+        <div className="flex justify-center gap-5 mb-3">
           {PRESETS.map((p) => (
             <button
               key={p.label}
