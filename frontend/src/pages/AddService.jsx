@@ -105,6 +105,9 @@ export default function AddService() {
     setServiceDate,
   ] = useState(getTodayLocal());
 
+  const [hasBillNo, setHasBillNo] =
+    useState(true);
+
   const [billNo, setBillNo] =
     useState("");
 
@@ -452,7 +455,7 @@ export default function AddService() {
         );
       }
 
-      if (!billNo.trim()) {
+      if (hasBillNo && !billNo.trim()) {
         return setError(
           "Bill No. is required"
         );
@@ -563,7 +566,7 @@ export default function AddService() {
 
         fd.append(
           "billNo",
-          billNo.trim()
+          hasBillNo ? billNo.trim() : ""
         );
 
         fd.append(
@@ -994,27 +997,73 @@ export default function AddService() {
                   Service Details
                 </h2>
 
-                <Field label="Bill No.">
-                  <input
-                    type="text"
-                    value={
-                      billNo
-                    }
-                    onChange={(
-                      e
-                    ) =>
-                      setBillNo(
-                        e.target
-                          .value
-                      )
-                    }
-                    placeholder="Enter bill number"
-                    required
-                    className={
-                      inputClass
-                    }
-                  />
-                </Field>
+                <div className="bg-[#F6F2E9] rounded-xl p-3.5">
+                  <span className="text-xs font-semibold text-[#5B6B5E] uppercase tracking-wide">
+                    Bill No. available?
+                  </span>
+
+                  <div className="flex gap-2 mt-2">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setHasBillNo(true);
+                      }}
+                      className={`flex-1 py-2.5 rounded-xl text-sm font-semibold ${
+                        hasBillNo
+                          ? "bg-[#4C9A5A] text-white"
+                          : "bg-white text-[#5B6B5E] border border-black/[0.06]"
+                      }`}
+                    >
+                      Yes
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setHasBillNo(false);
+                        setBillNo("");
+                      }}
+                      className={`flex-1 py-2.5 rounded-xl text-sm font-semibold ${
+                        !hasBillNo
+                          ? "bg-[#C24949] text-white"
+                          : "bg-white text-[#5B6B5E] border border-black/[0.06]"
+                      }`}
+                    >
+                      No
+                    </button>
+                  </div>
+
+                  {hasBillNo ? (
+                    <div className="mt-3">
+                      <Field label="Bill No.">
+                        <input
+                          type="text"
+                          value={
+                            billNo
+                          }
+                          onChange={(
+                            e
+                          ) =>
+                            setBillNo(
+                              e.target
+                                .value
+                            )
+                          }
+                          placeholder="Enter bill number"
+                          required
+                          className="w-full bg-white border border-black/[0.06] rounded-xl px-3.5 py-2.5 text-sm"
+                        />
+                      </Field>
+                    </div>
+                  ) : (
+                    <div className="mt-3 flex items-center gap-2 bg-[#FCEDED] border border-[#F3C6C6] rounded-xl px-3.5 py-2.5">
+                      <span className="h-2 w-2 rounded-full bg-[#C24949] shrink-0 animate-pulse" />
+                      <p className="text-[#C24949] text-xs font-semibold">
+                        No bill number on file for this service
+                      </p>
+                    </div>
+                  )}
+                </div>
 
                 <Field label="Service Type">
                   <select

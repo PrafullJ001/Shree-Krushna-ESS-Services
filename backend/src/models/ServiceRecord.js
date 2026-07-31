@@ -14,11 +14,11 @@ const serviceRecordSchema = new mongoose.Schema(
       default: Date.now,
     },
 
-    // Bill number - compulsory
+    // Bill number - optional (farmer can choose "No" on the Bill No. toggle)
     billNo: {
       type: String,
-      required: [true, "Bill No. is required"],
       trim: true,
+      default: "",
     },
 
     village: String,

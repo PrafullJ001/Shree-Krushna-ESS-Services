@@ -1,6 +1,14 @@
 ﻿import { useState, useMemo } from "react";
 
-export default function MathCaptchaModal({ title, message, onConfirm, onCancel, loading }) {
+export default function MathCaptchaModal({
+  title,
+  message,
+  onConfirm,
+  onCancel,
+  loading,
+  confirmLabel = "Confirm Delete",
+  loadingLabel = "Deleting...",
+}) {
   const [a, b] = useMemo(() => [
     Math.floor(Math.random() * 8) + 1,
     Math.floor(Math.random() * 8) + 1,
@@ -53,7 +61,7 @@ export default function MathCaptchaModal({ title, message, onConfirm, onCancel, 
             disabled={loading || !answer}
             className="flex-[1.5] bg-[#C24949] text-white rounded-2xl py-3 font-bold text-[14px] disabled:opacity-50"
           >
-            {loading ? "Deleting..." : "Confirm Delete"}
+            {loading ? loadingLabel : confirmLabel}
           </button>
         </div>
       </div>

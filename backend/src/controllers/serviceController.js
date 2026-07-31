@@ -21,17 +21,16 @@ const addService = async (req, res, next) => {
       paymentMode,
     } = req.body;
 
-    // Farmer, Bill No. and Total Bill are compulsory
+    // Farmer and Total Bill are compulsory. Bill No. is optional —
+    // the Add Service form lets the user say "No" if there's no bill.
     if (
       !farmer ||
-      !billNo ||
-      !String(billNo).trim() ||
       totalBill === undefined ||
       totalBill === null
     ) {
       return res.status(400).json({
         message:
-          "Farmer, Bill No. and Total Bill are required",
+          "Farmer and Total Bill are required",
       });
     }
 
@@ -58,8 +57,8 @@ const addService = async (req, res, next) => {
       farmer,
       serviceDate: serviceDate || Date.now(),
 
-      // Save Bill No. in MongoDB
-      billNo: String(billNo).trim(),
+      // Save Bill No. in MongoDB (may be empty if not provided)
+      billNo: billNo ? String(billNo).trim() : "",
 
       village,
       kshetra,

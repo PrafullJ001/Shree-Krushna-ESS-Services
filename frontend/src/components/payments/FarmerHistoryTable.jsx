@@ -4,7 +4,7 @@ import { formatDate } from "../../utils/formatDate";
 import PaymentForm from "./PaymentForm";
 import ServiceEditForm from "./ServiceEditForm";
 import PaymentHistoryList from "./PaymentHistoryList";
-import { deleteService } from "../../api/serviceApi";
+import { deleteService, updateService } from "../../api/serviceApi";
 import { useAuth } from "../../hooks/useAuth";
 import EmptyState from "../common/EmptyState";
 import MathCaptchaModal from "../common/MathCaptchaModal";
@@ -33,6 +33,53 @@ export default function FarmerHistoryTable({
 
   const [deleteError, setDeleteError] =
     useState(null);
+
+  // Inline "quick add Bill No." — lets you add a missing bill number
+  // right from the service card without opening the full Edit form.
+  const [billNoEditingId, setBillNoEditingId] = useState(null);
+  const [billNoDraft, setBillNoDraft] = useState("");
+  const [billNoError, setBillNoError] = useState(null);
+  const [savingBillNo, setSavingBillNo] = useState(false);
+
+  const startAddBillNo = (service) => {
+    setBillNoEditingId(service._id);
+    setBillNoDraft("");
+    setBillNoError(null);
+  };
+
+  const cancelAddBillNo = () => {
+    setBillNoEditingId(null);
+    setBillNoDraft("");
+    setBillNoError(null);
+  };
+
+  const handleSaveBillNo = async (service) => {
+    if (!billNoDraft.trim()) {
+      setBillNoError("Enter a bill number");
+      return;
+    }
+    setBillNoError(null);
+    setSavingBillNo(true);
+    try {
+      const fd = new FormData();
+      fd.append("billNo", billNoDraft.trim());
+      fd.append("cropName", service.cropName || "");
+      fd.append("serviceType", service.serviceType || "");
+      fd.append("kshetra", service.kshetra || "");
+      if (service.acres != null) fd.append("acres", service.acres);
+      if (service.plotName) fd.append("plotName", service.plotName);
+      fd.append("ratePerAcre", service.ratePerAcre || 0);
+      fd.append("totalBill", service.totalBill || 0);
+      if (service.notes) fd.append("notes", service.notes);
+
+      await updateService(service._id, fd);
+      // Force a full page refresh so every screen reflects the database.
+      window.location.reload();
+    } catch (err) {
+      setBillNoError(err.response?.data?.message || "Failed to save bill number");
+      setSavingBillNo(false);
+    }
+  };
 
   const statusStyles = {
     Paid:
@@ -294,6 +341,83 @@ export default function FarmerHistoryTable({
                     : ""}
                 </span>
 
+                {/* Bill No — green badge when present, red warning badge when missing */}
+                {s.billNo ? (
+                  <span className="flex items-center gap-1 bg-[#F6F2E9] px-2 py-1 rounded-md">
+                    <svg
+                      viewBox="0 0 24 24"
+                      className="h-3.5 w-3.5"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        d="M9 7h6m-6 4h6m-6 4h4M5 3h14a1 1 0 011 1v16l-3-2-3 2-3-2-3 2-3-2-3 2V4a1 1 0 011-1z"
+                      />
+                    </svg>
+
+                    Bill #{s.billNo}
+                  </span>
+                ) : billNoEditingId === s._id ? (
+                  <span className="flex items-center gap-1.5 bg-[#FCEDED] border border-[#F3C6C6] px-2 py-1.5 rounded-md">
+                    <input
+                      type="text"
+                      autoFocus
+                      value={billNoDraft}
+                      onChange={(e) => setBillNoDraft(e.target.value)}
+                      placeholder="Bill no."
+                      className="w-24 bg-white border border-black/[0.08] rounded-lg px-2 py-1 text-[12px] font-medium text-[#1F2A22] focus:outline-none focus:ring-2 focus:ring-[#4C9A5A]/20"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => handleSaveBillNo(s)}
+                      disabled={savingBillNo}
+                      className="text-[11px] font-bold text-white bg-[#4C9A5A] rounded-lg px-2 py-1 disabled:opacity-60"
+                    >
+                      {savingBillNo ? "Saving..." : "Save"}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={cancelAddBillNo}
+                      disabled={savingBillNo}
+                      className="text-[11px] font-bold text-[#1F2A22]/50"
+                    >
+                      Cancel
+                    </button>
+                    {billNoError && (
+                      <span className="text-[10px] font-semibold text-[#C24949]">{billNoError}</span>
+                    )}
+                  </span>
+                ) : (
+                  <span className="flex items-center gap-1.5">
+                    <span className="flex items-center gap-1 bg-[#FCEDED] text-[#C24949] px-2 py-1 rounded-md border border-[#F3C6C6]">
+                      <svg
+                        viewBox="0 0 24 24"
+                        className="h-3.5 w-3.5"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                      >
+                        <circle cx="12" cy="12" r="9" />
+                        <path d="M12 8v5M12 16h.01" strokeLinecap="round" />
+                      </svg>
+
+                      No Bill No.
+                    </span>
+                    {canEdit && (
+                      <button
+                        type="button"
+                        onClick={() => startAddBillNo(s)}
+                        className="text-[11px] font-bold text-[#4C9A5A] bg-[#E9F3E9] px-2 py-1 rounded-md"
+                      >
+                        + Add
+                      </button>
+                    )}
+                  </span>
+                )}
+
                 {/* Kshetra */}
                 {s.kshetra && (
                   <span className="flex items-center gap-1 bg-[#F6F2E9] px-2 py-1 rounded-md">
@@ -426,31 +550,30 @@ export default function FarmerHistoryTable({
 
               {/* Receipt and Payment Buttons */}
               <div className="flex items-center gap-2 pt-2">
-{s.billImage && (
-  <a
-    href={s.billImage}
-    target="_blank"
-    rel="noopener noreferrer"
-    className="flex-1 flex justify-center items-center gap-1.5 py-2.5 bg-white border border-black/10 rounded-xl text-[12px] font-bold text-[#1F2A22]/70 active:bg-gray-50 transition-colors"
-  >
-    <svg
-      viewBox="0 0 24 24"
-      className="h-4 w-4"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-    >
-      <path
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13"
-      />
-    </svg>
+                {s.billImage && (
+                  <a
+                    href={s.billImage}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex-1 flex justify-center items-center gap-1.5 py-2.5 bg-white border border-black/10 rounded-xl text-[12px] font-bold text-[#1F2A22]/70 active:bg-gray-50 transition-colors"
+                  >
+                    <svg
+                      viewBox="0 0 24 24"
+                      className="h-4 w-4"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13"
+                      />
+                    </svg>
 
-    Receipt
-  </a>
-)}
-          
+                    Receipt
+                  </a>
+                )}
 
                 {Number(
                   s.pendingAmount

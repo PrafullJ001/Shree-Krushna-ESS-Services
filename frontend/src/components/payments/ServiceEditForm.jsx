@@ -3,6 +3,7 @@ import { updateService } from "../../api/serviceApi";
 import { getSettings, updateSettings } from "../../api/settingsApi";
 import { CROPS, SERVICE_TYPES } from "../../constants/serviceOptions";
 import { useAuth } from "../../hooks/useAuth";
+import MathCaptchaModal from "../common/MathCaptchaModal";
 
 export default function ServiceEditForm({ service, onSuccess, onCancel }) {
   const { user } = useAuth();
@@ -11,6 +12,8 @@ export default function ServiceEditForm({ service, onSuccess, onCancel }) {
   const initialCropIsKnown = CROPS.includes(service.cropName);
   const initialServiceTypeIsKnown = SERVICE_TYPES.includes(service.serviceType);
   const initialR = service.acres ? String(Number(service.acres) * 40) : "";
+  const originalBillNo = service.billNo || "";
+  const originalAcres = service.acres != null ? String(service.acres) : "";
 
   const [billNo, setBillNo] = useState(service.billNo || "");
   const [cropName, setCropName] = useState(initialCropIsKnown ? service.cropName : "Other");
@@ -32,6 +35,11 @@ export default function ServiceEditForm({ service, onSuccess, onCancel }) {
 
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(false);
+
+  // Captcha confirmation gate for sensitive-field edits (Bill No., Acres, Guntha)
+  const [showCaptcha, setShowCaptcha] = useState(false);
+  const [pendingFormData, setPendingFormData] = useState(null);
+  const [confirmLoading, setConfirmLoading] = useState(false);
 
   useEffect(() => {
     getSettings()
@@ -100,6 +108,21 @@ export default function ServiceEditForm({ service, onSuccess, onCancel }) {
     }
   };
 
+  // Actually performs the update API call. Shared by the direct-save path
+  // and the "confirm via captcha" path so the logic only lives in one place.
+  const performUpdate = async (fd) => {
+    setLoading(true);
+    try {
+      await updateService(service._id, fd);
+      // Force a full page refresh so every screen (bill total, paid,
+      // pending, history) reflects exactly what's in the database.
+      window.location.reload();
+    } catch (err) {
+      setError(err.response?.data?.message || "Failed to update service");
+      setLoading(false);
+    }
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError(null);
@@ -112,27 +135,41 @@ export default function ServiceEditForm({ service, onSuccess, onCancel }) {
     if (!finalServiceType) return setError("Please select or enter a service type");
     if (totalBill === "" || totalBill === null) return setError("Total bill is required");
 
-    setLoading(true);
-    try {
-      const fd = new FormData();
-      fd.append("billNo", billNo.trim());
-      fd.append("cropName", finalCrop);
-      fd.append("serviceType", finalServiceType);
-      fd.append("kshetra", plotR ? `${plotR} R` : "");
-      if (acres !== "") fd.append("acres", acres);
-      if (plotName !== "") fd.append("plotName", plotName);
-      fd.append("ratePerAcre", ratePerAcre);
-      fd.append("totalBill", totalBill);
-      if (notes !== "") fd.append("notes", notes);
+    const fd = new FormData();
+    fd.append("billNo", billNo.trim());
+    fd.append("cropName", finalCrop);
+    fd.append("serviceType", finalServiceType);
+    fd.append("kshetra", plotR ? `${plotR} R` : "");
+    if (acres !== "") fd.append("acres", acres);
+    if (plotName !== "") fd.append("plotName", plotName);
+    fd.append("ratePerAcre", ratePerAcre);
+    fd.append("totalBill", totalBill);
+    if (notes !== "") fd.append("notes", notes);
 
-      await updateService(service._id, fd);
-      // Force a full page refresh so every screen (bill total, paid,
-      // pending, history) reflects exactly what's in the database.
-      window.location.reload();
-    } catch (err) {
-      setError(err.response?.data?.message || "Failed to update service");
-      setLoading(false);
+    // Bill No., Acres, or Guntha (R) changed from what they originally were —
+    // require a math captcha confirmation before saving these sensitive fields.
+    const billNoChanged = billNo.trim() !== originalBillNo;
+    const acresChanged = String(acres) !== originalAcres;
+    const gunthaChanged = plotR !== initialR;
+
+    if (billNoChanged || acresChanged || gunthaChanged) {
+      setPendingFormData(fd);
+      setShowCaptcha(true);
+      return;
     }
+
+    await performUpdate(fd);
+  };
+
+  const handleCaptchaConfirm = async () => {
+    setConfirmLoading(true);
+    await performUpdate(pendingFormData);
+    setConfirmLoading(false);
+  };
+
+  const handleCaptchaCancel = () => {
+    setShowCaptcha(false);
+    setPendingFormData(null);
   };
 
   const inputClassName =
@@ -331,6 +368,18 @@ export default function ServiceEditForm({ service, onSuccess, onCancel }) {
           {loading ? "Saving..." : "Save Changes"}
         </button>
       </div>
+
+      {showCaptcha && (
+  <MathCaptchaModal
+    title="Confirm Bill No. / Area Change"
+    message="You're changing the Bill No., Acres, or Guntha for this service. Please confirm to continue."
+    onCancel={handleCaptchaCancel}
+    onConfirm={handleCaptchaConfirm}
+    loading={confirmLoading}
+    confirmLabel="Confirm Changes"
+    loadingLabel="Saving..."
+  />
+)}
     </form>
   );
 }
