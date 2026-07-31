@@ -131,16 +131,23 @@ export default function Payments() {
               {p.label}
             </button>
           ))}
+
           <button
-            onClick={() => setShowCustomRange((v) => !v)}
-            className={`shrink-0 px-3.5 py-2 rounded-xl text-sm font-bold transition-all ${
-              activePreset === "Custom"
-                ? "bg-[#2B5439] text-white shadow-sm"
-                : "bg-white text-[#1F2A22]/60 border border-black/[0.06]"
-            }`}
-          >
-            Custom Range
-          </button>
+  onClick={() => {
+    setShowCustomRange((prev) => {
+      const next = !prev;
+      if (next) setActivePreset("Custom");
+      return next;
+    });
+  }}
+  className={`shrink-0 px-3.5 py-2 rounded-xl text-sm font-bold transition-all ${
+    activePreset === "Custom"
+      ? "bg-[#2B5439] text-white shadow-sm"
+      : "bg-white text-[#1F2A22]/60 border border-black/[0.06]"
+  }`}
+>
+  Custom Range
+</button>
         </div>
 
         {showCustomRange && (
