@@ -1,6 +1,7 @@
-const ServiceRecord = require("../models/ServiceRecord");
+﻿const ServiceRecord = require("../models/ServiceRecord");
 const Farmer = require("../models/Farmer");
 const Payment = require("../models/Payment");
+const User = require("../models/User");
 
 const addService = async (req, res, next) => {
   try {
@@ -19,6 +20,7 @@ const addService = async (req, res, next) => {
       totalBill,
       notes,
       paymentMode,
+      assignedStaffId, // admin-only override: which staff this service is credited to
     } = req.body;
 
     // Farmer and Total Bill are compulsory. Bill No. is optional —
@@ -49,6 +51,21 @@ const addService = async (req, res, next) => {
       });
     }
 
+    // Default: whoever is actually logged in (staff or admin) gets credit,
+    // exactly as before. Only an admin can override this to attribute the
+    // service to a different staff member.
+    let createdBy = req.user._id;
+
+    if (req.user.role === "admin" && assignedStaffId) {
+      const assignedUser = await User.findById(assignedStaffId);
+      if (!assignedUser) {
+        return res.status(400).json({
+          message: "Selected staff member not found",
+        });
+      }
+      createdBy = assignedUser._id;
+    }
+
     const billImage = req.file
       ? req.file.path
       : undefined;
@@ -72,7 +89,7 @@ const addService = async (req, res, next) => {
       paymentMode,
       billImage,
       notes,
-      createdBy: req.user._id,
+      createdBy,
     });
 
     service.recalculate();
@@ -228,14 +245,12 @@ const updateService = async (
     }
 
     if (
-      Number(service.totalBill) <
-      service.amountPaid
-    ) {
-      return res.status(400).json({
-        message: `Total bill cannot be less than amount already paid (₹${service.amountPaid})`,
-      });
-    }
-
+  Number(service.totalBill) < Number(service.amountPaid)
+) {
+  return res.status(400).json({
+    message: `Total bill cannot be less than amount already paid (₹${service.amountPaid})`,
+  });
+}
     service.recalculate();
 
     await service.save();
@@ -305,13 +320,12 @@ const applyDiscount = async (
       discountAmount;
 
     if (
-      newTotalBill <
-      Number(service.amountPaid)
-    ) {
-      return res.status(400).json({
-        message: `New bill cannot be less than amount already paid (₹${service.amountPaid})`,
-      });
-    }
+  newTotalBill < Number(service.amountPaid)
+) {
+  return res.status(400).json({
+    message: `New bill cannot be less than amount already paid (₹${service.amountPaid})`,
+  });
+}
 
     if (newTotalBill < 0) {
       return res.status(400).json({

@@ -8,6 +8,7 @@ import { getSettings, updateSettings } from "../api/settingsApi";
 import { buildServiceMessage } from "../utils/messageTemplates";
 import SendMessageButtons from "../components/common/SendMessageButtons";
 import { useAuth } from "../hooks/useAuth";
+import axiosInstance from "../api/axiosInstance";
 import { CROPS, SERVICE_TYPES } from "../constants/serviceOptions";
 
 function Field({ label, hint, children }) {
@@ -169,6 +170,17 @@ export default function AddService() {
     setDiscountReason,
   ] = useState("");
 
+  // Admin-only: who this service should be credited to. Compulsory
+  // for admins (must explicitly pick someone), never shown to staff —
+  // staff logins are always credited to themselves automatically.
+  const [staffList, setStaffList] =
+    useState([]);
+
+  const [
+    assignedStaffId,
+    setAssignedStaffId,
+  ] = useState("");
+
   const [error, setError] =
     useState(null);
 
@@ -225,6 +237,19 @@ export default function AddService() {
         setRatePerAcre(0)
       );
   }, []);
+
+  // ---------------------------------------
+  // STAFF LIST — admin only
+  // ---------------------------------------
+
+  useEffect(() => {
+    if (!isAdmin) return;
+
+    axiosInstance
+      .get("/staff")
+      .then(({ data }) => setStaffList(data))
+      .catch(() => setStaffList([]));
+  }, [isAdmin]);
 
   // ---------------------------------------
   // FARMER VILLAGE
@@ -494,6 +519,12 @@ export default function AddService() {
         );
       }
 
+      if (isAdmin && !assignedStaffId) {
+        return setError(
+          "Please select which staff member this service is for"
+        );
+      }
+
       if (billPaid) {
         if (
           !amountPaid ||
@@ -623,6 +654,13 @@ export default function AddService() {
           "serviceDate",
           serviceDate
         );
+
+        if (isAdmin && assignedStaffId) {
+          fd.append(
+            "assignedStaffId",
+            assignedStaffId
+          );
+        }
 
         if (billImageFile) {
           fd.append(
@@ -812,6 +850,37 @@ export default function AddService() {
               autoComplete="off"
               className="space-y-4"
             >
+
+              {/* ADMIN ONLY: WHO IS THIS SERVICE FOR */}
+
+              {isAdmin && (
+                <div className="bg-white rounded-[1.5rem] shadow-sm border border-black/[0.04] p-5 space-y-4">
+                  <h2 className="text-sm font-bold text-[#1F2A22]">
+                    Added By
+                  </h2>
+
+                  <Field
+                    label="Staff Member"
+                    hint="Required — select which staff login this service should be credited to"
+                  >
+                    <select
+                      value={assignedStaffId}
+                      onChange={(e) => setAssignedStaffId(e.target.value)}
+                      required
+                      className={inputClass}
+                    >
+                      <option value="">
+                        Select staff member
+                      </option>
+                      {staffList.map((s) => (
+                        <option key={s._id} value={s._id}>
+                          {s.name} {s.role === "admin" ? "(Admin)" : ""}
+                        </option>
+                      ))}
+                    </select>
+                  </Field>
+                </div>
+              )}
 
               {/* LOCATION */}
 

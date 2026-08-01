@@ -1,6 +1,7 @@
-﻿import {BrowserRouter,Routes,Route,} from "react-router-dom";
+﻿import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "./context/AuthContext";
 import ProtectedRoute from "./components/common/ProtectedRoute";
+import AdminOnlyRoute from "./components/common/AdminOnlyRoute";
 import BottomNav from "./components/common/BottomNav";
 import Login from "./pages/Login";
 import ForgotPassword from "./pages/ForgotPassword";
@@ -24,26 +25,25 @@ function ProtectedLayout({ children }) {
   );
 }
 
+function AdminProtectedLayout({ children }) {
+  return (
+    <ProtectedRoute>
+      <AdminOnlyRoute>{children}</AdminOnlyRoute>
+      <BottomNav />
+    </ProtectedRoute>
+  );
+}
+
 export default function App() {
   return (
     <AuthProvider>
       <BrowserRouter>
         <Routes>
-          <Route
-            path="/login"
-            element={<Login />}
-          />
-
-          <Route
-            path="/forgot-password"
-            element={<ForgotPassword />}
-          />
+          <Route path="/login" element={<Login />} />
+          <Route path="/forgot-password" element={<ForgotPassword />} />
 
           {/* PUBLIC: Statement link shared via reminder message — no login required */}
-          <Route
-            path="/statement/:slugId"
-            element={<StatementPage />}
-          />
+          <Route path="/statement/:slugId" element={<StatementPage />} />
 
           <Route
             path="/"
@@ -81,12 +81,13 @@ export default function App() {
             }
           />
 
+          {/* Staff attempting to reach /payments directly gets redirected */}
           <Route
             path="/payments"
             element={
-              <ProtectedLayout>
+              <AdminProtectedLayout>
                 <Payments />
-              </ProtectedLayout>
+              </AdminProtectedLayout>
             }
           />
 
@@ -117,7 +118,6 @@ export default function App() {
             }
           />
 
-          {/* NEW: Admin OTP Approvals */}
           <Route
             path="/otp-approvals"
             element={

@@ -1,6 +1,7 @@
-import { NavLink } from "react-router-dom";
+﻿import { NavLink } from "react-router-dom";
+import { useAuth } from "../../hooks/useAuth";
 
-const navItems = [
+const baseNavItems = [
   {
     to: "/",
     label: "Home",
@@ -14,6 +15,7 @@ const navItems = [
   {
     to: "/farmers",
     label: "Farmers",
+    adminOnly: true, // staff never sees this tab
     icon: (
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5">
         <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
@@ -26,7 +28,7 @@ const navItems = [
   {
     to: "/add-service",
     label: "Add",
-    isAction: true, // Custom flag to style this button differently
+    isAction: true,
     icon: (
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="w-6 h-6">
         <line x1="12" y1="5" x2="12" y2="19" />
@@ -37,6 +39,7 @@ const navItems = [
   {
     to: "/payments",
     label: "Payments",
+    adminOnly: true, // staff never sees this tab
     icon: (
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5">
         <rect x="2" y="6" width="20" height="12" rx="2" />
@@ -58,6 +61,11 @@ const navItems = [
 ];
 
 export default function BottomNav() {
+  const { user } = useAuth();
+  const isAdmin = user?.role === "admin";
+
+  const navItems = baseNavItems.filter((item) => !item.adminOnly || isAdmin);
+
   return (
     <nav className="fixed bottom-0 left-0 right-0 bg-white/90 backdrop-blur-md border-t border-[#1F3D2B]/10 shadow-[0_-4px_24px_rgba(0,0,0,0.04)] pb-[env(safe-area-inset-bottom)] z-50">
       <div className="flex justify-around items-center h-16 px-2 relative">
@@ -68,7 +76,7 @@ export default function BottomNav() {
             end={item.to === "/"}
             className={({ isActive }) =>
               item.isAction
-                ? `relative -top-5 flex flex-col items-center justify-center` // Floating action button wrapper
+                ? `relative -top-5 flex flex-col items-center justify-center`
                 : `flex flex-col items-center justify-center flex-1 h-full w-full gap-1 transition-all duration-200 ${
                     isActive
                       ? "text-[#4C9A5A]"
@@ -78,7 +86,6 @@ export default function BottomNav() {
           >
             {({ isActive }) =>
               item.isAction ? (
-                // Elevated Action Button
                 <div className="flex flex-col items-center">
                   <div
                     className={`flex items-center justify-center h-[52px] w-[52px] rounded-full shadow-lg border-4 border-[#F6F2E9] transition-transform active:scale-95 ${
@@ -92,7 +99,6 @@ export default function BottomNav() {
                   </span>
                 </div>
               ) : (
-                // Standard Nav Item
                 <>
                   <div className={`transition-transform duration-200 ${isActive ? "scale-110" : "scale-100"}`}>
                     {item.icon}

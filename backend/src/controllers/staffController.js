@@ -54,3 +54,14 @@ exports.getStaffPerformance = async (req, res) => {
     res.status(500).json({ message: err.message });
   }
 }; 
+// @desc  List all staff/admin accounts — lightweight, for pickers like
+//        Add Service's "Added By" dropdown (no performance aggregation).
+// @route GET /api/staff
+exports.getAllStaff = async (req, res) => {
+  try {
+    const staff = await User.find({}).select("name role mobile").sort({ name: 1 });
+    res.json(staff);
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+};

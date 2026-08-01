@@ -237,7 +237,8 @@ export default function FarmerProfile() {
             )}
           </div>
 
-          {/* Acres Summary */}
+          {/* Acres Summary — admin only, since pending acres derives from payment status */}
+          {isAdmin && (
           <div className="pt-4 border-t border-black/[0.05]">
             <p className="text-[10px] uppercase font-bold text-[#1F2A22]/40 tracking-widest mb-3">Acres Summary</p>
             <div className="grid grid-cols-2 gap-2">
@@ -251,8 +252,10 @@ export default function FarmerProfile() {
               </div>
             </div>
           </div>
+          )}
 
-          {/* Financial Summary */}
+          {/* Financial Summary — admin only */}
+          {isAdmin && (
           <div className="pt-4 mt-4 border-t border-black/[0.05]">
             <p className="text-[10px] uppercase font-bold text-[#1F2A22]/40 tracking-widest mb-3">Payment Summary</p>
 
@@ -296,6 +299,7 @@ export default function FarmerProfile() {
               totals={{ totalBill, totalCollected, totalPending }}
             />
           </div>
+          )}
 
           {deleteError && (
             <div className="bg-[#FCEDED] border border-[#F3C6C6] rounded-xl p-3 mt-4 flex items-center gap-2">
