@@ -19,6 +19,9 @@ export default function StatementPage() {
   // Tracks which service boxes have their payment history expanded
   const [expandedServices, setExpandedServices] = useState(new Set());
 
+  // Tracks whether the UPI QR code is shown full-screen for easier scanning
+  const [isQrZoomed, setIsQrZoomed] = useState(false);
+
   const toggleServiceHistory = (serviceId) => {
     setExpandedServices((prev) => {
       const next = new Set(prev);
@@ -308,13 +311,22 @@ export default function StatementPage() {
               Pay Now
             </p>
 
-            <div className="rounded-2xl border border-black/[0.06] p-2.5 bg-white shadow-inner mb-3">
+            <button
+              type="button"
+              onClick={() => setIsQrZoomed(true)}
+              className="rounded-2xl border border-black/[0.06] p-2.5 bg-white shadow-inner mb-3 active:scale-[0.98] transition-transform"
+              aria-label="Tap to enlarge QR code"
+            >
               <img
-                src="/upi-qr.png"
+                src="/images/upi-qr.png"
                 alt="UPI QR Code"
                 className="w-48 h-48 object-contain"
               />
-            </div>
+            </button>
+
+            <p className="text-[11px] font-semibold text-[#1F2A22]/40 -mt-1 mb-1">
+              Tap QR to zoom
+            </p>
 
             <p className="text-base font-bold text-[#1F2A22] leading-tight">
               Dhananjay Balasaheb Jadhav
@@ -332,6 +344,37 @@ export default function StatementPage() {
           </div>
         </div>
       </div>
+
+      {/* Full-screen QR zoom overlay */}
+      {isQrZoomed && (
+        <div
+          onClick={() => setIsQrZoomed(false)}
+          className="fixed inset-0 z-50 bg-black/90 backdrop-blur-sm flex flex-col items-center justify-center px-6"
+        >
+          <button
+            type="button"
+            onClick={() => setIsQrZoomed(false)}
+            className="absolute top-6 right-6 h-10 w-10 rounded-full bg-white/10 border border-white/20 flex items-center justify-center text-white"
+            aria-label="Close zoomed QR code"
+          >
+            <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M6 6l12 12M18 6L6 18" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+          </button>
+
+          <div className="bg-white rounded-3xl p-4 shadow-2xl max-w-sm w-full">
+            <img
+              src="/images/upi-qr.png"
+              alt="UPI QR Code"
+              className="w-full h-auto object-contain"
+            />
+          </div>
+
+          <p className="text-white/60 text-xs font-semibold mt-4 tracking-wide uppercase">
+            Tap anywhere to close
+          </p>
+        </div>
+      )}
     </div>
   );
 }
