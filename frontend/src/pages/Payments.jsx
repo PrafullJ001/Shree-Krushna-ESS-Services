@@ -26,6 +26,25 @@ const formatCurrencyForPdf = (amount) => {
   return `Rs. ${value.toLocaleString("en-IN")}`;
 };
 
+// Returns the next unique counter for a given base filename, scoped to
+// today's date, so re-generating the same PDF multiple times in one day
+// produces _1, _2, _3... instead of overwriting the previous download.
+// Resets automatically each day since the storage key includes the date.
+const getNextFileCounter = (baseKey) => {
+  const today = getTodayLocal();
+  const storageKey = `pdf_counter_${baseKey}_${today}`;
+  const current = Number(localStorage.getItem(storageKey)) || 0;
+  const next = current + 1;
+  try {
+    localStorage.setItem(storageKey, String(next));
+  } catch (e) {
+    // localStorage unavailable (private browsing, quota, etc.) — fall back
+    // to timestamp-based uniqueness so the filename still doesn't collide.
+    return Date.now() % 100000;
+  }
+  return next;
+};
+
 const PRESETS = [
   { label: "All Time", from: "", to: "" },
   { label: "Last 6 Months", from: monthsAgo(6), to: getTodayLocal() },
@@ -128,7 +147,9 @@ export default function Payments() {
   }, [records, searchQuery]);
 
   // Aggregates all pending records for a single farmer into one row:
-  // total bill, collected amount, and pending amount, all in rupees.
+  // total bill, collected amount, pending amount, total acres, and
+  // pending acres (acres belonging only to records still owing money),
+  // all in the same units as the source records.
   const buildFarmerAggregates = (recordsForVillage) => {
     const farmerMap = new Map();
 
@@ -142,19 +163,28 @@ export default function Payments() {
           totalAmount: 0,
           collectedAmount: 0,
           pendingAmount: 0,
+          totalAcres: 0,
+          pendingAcres: 0,
         });
       }
       const entry = farmerMap.get(farmerId);
+      const acres = Number(r.acres) || 0;
+      const pendingAmt = Number(r.pendingAmount) || 0;
+
       entry.totalAmount += Number(r.totalBill) || 0;
       entry.collectedAmount += Number(r.amountPaid) || 0;
-      entry.pendingAmount += Number(r.pendingAmount) || 0;
+      entry.pendingAmount += pendingAmt;
+      entry.totalAcres += acres;
+      if (pendingAmt > 0) {
+        entry.pendingAcres += acres;
+      }
     });
 
     return Array.from(farmerMap.values());
   };
 
   // Builds a PDF for one village: unique pending farmers, showing
-  // Name, Mobile, Total Bill, Collected, Pending — all amounts in rupees.
+  // Name, Mobile, Pending Acres, Total Bill, Collected, Total Pending.
   const handleGenerateVillagePdf = (village) => {
     setGeneratingVillage(village);
     try {
@@ -176,6 +206,7 @@ export default function Payments() {
       const rows = farmersInVillage.map((f) => [
         f.fullName,
         f.mobile,
+        f.pendingAcres.toFixed(2),
         formatCurrencyForPdf(f.totalAmount),
         formatCurrencyForPdf(f.collectedAmount),
         formatCurrencyForPdf(f.pendingAmount),
@@ -183,14 +214,16 @@ export default function Payments() {
 
       autoTable(doc, {
         startY: 40,
-        head: [["Farmer Name", "Mobile No.", "Total Bill", "Collected", "Pending"]],
+        head: [["Farmer Name", "Mobile No.", "Pending Acres", "Total Bill", "Collected", "Total Pending"]],
         body: rows,
-        styles: { fontSize: 9 },
+        styles: { fontSize: 8 },
         headStyles: { fillColor: [76, 154, 90] },
       });
 
       const fileDate = getTodayLocal();
-      doc.save(`${village.replace(/\s+/g, "_")}_pending_farmers_${fileDate}.pdf`);
+      const safeVillage = village.replace(/\s+/g, "_");
+      const counter = getNextFileCounter(safeVillage);
+      doc.save(`${safeVillage}_pending_farmers_${fileDate}_${counter}.pdf`);
       setShowDropdown(false);
       setSearchQuery("");
     } finally {
@@ -239,6 +272,7 @@ export default function Payments() {
         const rows = farmers.map((f) => [
           f.fullName,
           f.mobile,
+          f.pendingAcres.toFixed(2),
           formatCurrencyForPdf(f.totalAmount),
           formatCurrencyForPdf(f.collectedAmount),
           formatCurrencyForPdf(f.pendingAmount),
@@ -246,15 +280,16 @@ export default function Payments() {
 
         autoTable(doc, {
           startY: 40,
-          head: [["Farmer Name", "Mobile No.", "Total Bill", "Collected", "Pending"]],
+          head: [["Farmer Name", "Mobile No.", "Pending Acres", "Total Bill", "Collected", "Total Pending"]],
           body: rows,
-          styles: { fontSize: 9 },
+          styles: { fontSize: 8 },
           headStyles: { fillColor: [76, 154, 90] },
         });
       });
 
       const fileDate = getTodayLocal();
-      doc.save(`All_Villages_Pending_${fileDate}.pdf`);
+      const counter = getNextFileCounter("All_Villages");
+      doc.save(`All_Villages_Pending_${fileDate}_${counter}.pdf`);
     } finally {
       setGeneratingAll(false);
     }
@@ -546,7 +581,7 @@ export default function Payments() {
 
                     <div className="flex flex-wrap gap-1.5 mb-3.5">
                       {r.billNo ? (
-                        <span className="text-[11px] font-semibold text-[#1F2A22]/60 bg-[#F6F2E9] px-2 py-1 rounded-md">Bill #{r.billNo}</span>
+                        <span className="text-[11px] font-semibold text-[#1F2A22]/60 bg-[#F6F2E9] px-2 py-1 rounded-md">Bill- {r.billNo}</span>
                       ) : (
                         <span className="text-[11px] font-semibold text-[#C24949] bg-[#FCEDED] border border-[#F3C6C6] px-2 py-1 rounded-md">No Bill No.</span>
                       )}

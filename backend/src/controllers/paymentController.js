@@ -459,10 +459,23 @@ exports.deletePayment = async (
   }
 };
 
+// -------------------------------------------------------
+// CLEAR ALL PENDING (settle-all) — now supports the same
+// optional discount flow as bulk payment. Discount is applied
+// FIFO (oldest service first) to reduce each bill before the
+// remaining pending on that service is paid off in full.
+// -------------------------------------------------------
 exports.settleAllForFarmer = async (req, res) => {
   try {
     const { farmerId } = req.params;
-    const { paidOn, mode, note } = req.body;
+    const {
+      paidOn,
+      mode,
+      note,
+      applyDiscount,
+      discountAmount,
+      discountReason,
+    } = req.body;
 
     // Parse the date the user picked; fall back to now if not provided/invalid.
     const paidOnDate = paidOn ? new Date(paidOn) : new Date();
@@ -471,10 +484,28 @@ exports.settleAllForFarmer = async (req, res) => {
     const services = await ServiceRecord.find({
       farmer: farmerId,
       paymentStatus: { $in: ['Unpaid', 'Partially Paid'] },
-    });
+    }).sort({ serviceDate: 1 }); // oldest first — FIFO, matches bulk payment
 
     if (services.length === 0) {
       return res.status(400).json({ message: 'No pending services to settle' });
+    }
+
+    const shouldApplyDiscount =
+      applyDiscount === true || applyDiscount === 'true';
+
+    let remainingDiscountPaise = shouldApplyDiscount
+      ? toPaise(discountAmount)
+      : 0;
+
+    if (shouldApplyDiscount && (!remainingDiscountPaise || remainingDiscountPaise <= 0)) {
+      return res.status(400).json({ message: 'Discount amount must be greater than 0' });
+    }
+
+    const totalPendingPaise = services.reduce((sum, s) => sum + toPaise(s.pendingAmount), 0);
+    if (remainingDiscountPaise > totalPendingPaise) {
+      return res.status(400).json({
+        message: `Discount exceeds total pending (₹${fromPaise(totalPendingPaise)})`,
+      });
     }
 
     const settledServices = [];
@@ -483,19 +514,51 @@ exports.settleAllForFarmer = async (req, res) => {
       const pendingPaise = toPaise(service.pendingAmount);
       if (pendingPaise <= 0) continue;
 
-      await Payment.create({
-        serviceRecord: service._id,
-        farmer: service.farmer,
-        amount: fromPaise(pendingPaise),
-        mode: mode || 'Cash',
-        type: 'Payment',
-        note: note || 'Settled in full (bulk clear)',
-        paidOn: resolvedPaidOn,
-        receivedBy: req.user?._id,
-      });
+      // Discount portion first (reduces this service's bill, FIFO)
+      const discountForThis = Math.min(remainingDiscountPaise, pendingPaise);
+      if (discountForThis > 0) {
+        service.totalBill = fromPaise(toPaise(service.totalBill) - discountForThis);
 
-      service.amountPaid = service.totalBill;
-      service.paymentMode = mode || service.paymentMode;
+        const discountNote = `Discount of ₹${fromPaise(discountForThis)} applied (settle all)${
+          discountReason ? `: ${discountReason}` : ''
+        }`;
+        service.notes = service.notes
+          ? `${service.notes}\n${discountNote}`
+          : discountNote;
+
+        await Payment.create({
+          serviceRecord: service._id,
+          farmer: service.farmer,
+          amount: fromPaise(discountForThis),
+          type: 'Discount',
+          mode: 'Cash',
+          note: discountReason || 'Discount applied (settle all)',
+          receivedBy: req.user?._id,
+        });
+
+        remainingDiscountPaise -= discountForThis;
+      }
+
+      // Pay off whatever's left on this service, in full
+      const remainingPendingPaise =
+        toPaise(service.totalBill) - toPaise(service.amountPaid);
+
+      if (remainingPendingPaise > 0) {
+        await Payment.create({
+          serviceRecord: service._id,
+          farmer: service.farmer,
+          amount: fromPaise(remainingPendingPaise),
+          mode: mode || 'Cash',
+          type: 'Payment',
+          note: note || 'Settled in full (bulk clear)',
+          paidOn: resolvedPaidOn,
+          receivedBy: req.user?._id,
+        });
+
+        service.amountPaid = service.totalBill;
+        service.paymentMode = mode || service.paymentMode;
+      }
+
       service.recalculate();
       await service.save();
       settledServices.push(service);
@@ -510,10 +573,26 @@ exports.settleAllForFarmer = async (req, res) => {
   }
 };
 
+// -------------------------------------------------------
+// BULK PAYMENT ACROSS MULTIPLE SERVICES (FIFO)
+// Applies oldest-service-first, same as before. Now also
+// supports an optional single discount applied the same
+// way — FIFO across services, discount portion first on
+// each service, then payment portion — using the same
+// paise-safe math as addPayment's discount logic.
+// -------------------------------------------------------
 exports.recordBulkPayment = async (req, res) => {
   try {
     const { farmerId } = req.params;
-    const { amount, mode, note, paidOn } = req.body;
+    const {
+      amount,
+      mode,
+      note,
+      paidOn,
+      applyDiscount,
+      discountAmount,
+      discountReason,
+    } = req.body;
 
     // Parse the date the user picked; fall back to now if not provided/invalid.
     const paidOnDate = paidOn ? new Date(paidOn) : new Date();
@@ -522,6 +601,17 @@ exports.recordBulkPayment = async (req, res) => {
     let remainingPaise = toPaise(amount);
     if (!remainingPaise || remainingPaise <= 0) {
       return res.status(400).json({ message: 'Amount must be greater than 0' });
+    }
+
+    const shouldApplyDiscount =
+      applyDiscount === true || applyDiscount === 'true';
+
+    let remainingDiscountPaise = shouldApplyDiscount
+      ? toPaise(discountAmount)
+      : 0;
+
+    if (shouldApplyDiscount && (!remainingDiscountPaise || remainingDiscountPaise <= 0)) {
+      return res.status(400).json({ message: 'Discount amount must be greater than 0' });
     }
 
     // Oldest unpaid service first — clears older debts before newer ones
@@ -535,40 +625,70 @@ exports.recordBulkPayment = async (req, res) => {
     }
 
     const totalPendingPaise = services.reduce((sum, s) => sum + toPaise(s.pendingAmount), 0);
-    if (remainingPaise > totalPendingPaise) {
+    if (remainingPaise + remainingDiscountPaise > totalPendingPaise) {
       return res.status(400).json({
-        message: `Amount exceeds total pending (₹${fromPaise(totalPendingPaise)})`,
+        message: `Payment and discount together exceed total pending (₹${fromPaise(totalPendingPaise)})`,
       });
     }
 
     const updatedServices = [];
 
     for (const service of services) {
-      if (remainingPaise <= 0) break;
+      if (remainingPaise <= 0 && remainingDiscountPaise <= 0) break;
+
       const pendingPaise = toPaise(service.pendingAmount);
       if (pendingPaise <= 0) continue;
 
-      const applyPaise = Math.min(pendingPaise, remainingPaise);
-      const applyAmount = fromPaise(applyPaise);
+      // Discount portion first (reduces this service's bill), then payment — both FIFO
+      const discountForThis = Math.min(remainingDiscountPaise, pendingPaise);
+      const pendingAfterDiscount = pendingPaise - discountForThis;
+      const applyPaise = Math.min(pendingAfterDiscount, remainingPaise);
 
-      await Payment.create({
-        serviceRecord: service._id,
-        farmer: service.farmer,
-        amount: applyAmount,
-        mode: mode || 'Cash',
-        type: 'Payment',
-        note: note || 'Bulk payment across multiple services',
-        paidOn: resolvedPaidOn,
-        receivedBy: req.user?._id,
-      });
+      if (discountForThis > 0) {
+        service.totalBill = fromPaise(toPaise(service.totalBill) - discountForThis);
 
-      service.amountPaid = fromPaise(toPaise(service.amountPaid) + applyPaise);
-      service.paymentMode = mode || service.paymentMode;
+        const discountNote = `Discount of ₹${fromPaise(discountForThis)} applied (bulk payment)${
+          discountReason ? `: ${discountReason}` : ''
+        }`;
+        service.notes = service.notes
+          ? `${service.notes}\n${discountNote}`
+          : discountNote;
+
+        await Payment.create({
+          serviceRecord: service._id,
+          farmer: service.farmer,
+          amount: fromPaise(discountForThis),
+          type: 'Discount',
+          mode: 'Cash',
+          note: discountReason || 'Discount applied (bulk payment)',
+          receivedBy: req.user?._id,
+        });
+
+        remainingDiscountPaise -= discountForThis;
+      }
+
+      if (applyPaise > 0) {
+        const applyAmount = fromPaise(applyPaise);
+
+        await Payment.create({
+          serviceRecord: service._id,
+          farmer: service.farmer,
+          amount: applyAmount,
+          mode: mode || 'Cash',
+          type: 'Payment',
+          note: note || 'Bulk payment across multiple services',
+          paidOn: resolvedPaidOn,
+          receivedBy: req.user?._id,
+        });
+
+        service.amountPaid = fromPaise(toPaise(service.amountPaid) + applyPaise);
+        service.paymentMode = mode || service.paymentMode;
+        remainingPaise -= applyPaise;
+      }
+
       service.recalculate();
       await service.save();
       updatedServices.push(service);
-
-      remainingPaise -= applyPaise;
     }
 
     res.json({

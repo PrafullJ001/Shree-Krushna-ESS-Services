@@ -186,7 +186,7 @@ export default function StatementPage() {
         {/* Pending Services — each box has its own expandable payment history */}
         <div className="mt-8">
           <div className="flex items-center justify-between mb-3 px-1">
-            <h2 className="text-lg font-bold text-[#1F2A22] tracking-tight">Pending Services</h2>
+            <h2 className="text-lg font-bold text-[#1F2A22] tracking-tight">Pending Services Payments</h2>
             {pendingServices.length > 0 && (
               <span className="text-[11px] font-bold uppercase tracking-wide text-[#D97706] bg-[#FEF3C7] rounded-lg px-2.5 py-1 shadow-sm border border-[#D97706]/10">
                 {pendingServices.length} Pending

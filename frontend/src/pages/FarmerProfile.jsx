@@ -152,6 +152,16 @@ export default function FarmerProfile() {
   const totalCollected = services.reduce((sum, service) => sum + Number(service.amountPaid || 0), 0);
   const totalPending = services.reduce((sum, service) => sum + Number(service.pendingAmount || 0), 0);
 
+  // ACRES SUMMARY — total acres across all services, and "pending acres"
+  // (acres belonging to services that still have money owed). This is
+  // derived live from `services`, so it auto-adjusts the moment a bulk
+  // payment or "Clear All Pending" fully settles a service — no separate
+  // tracking needed, it just reflects current state.
+  const totalAcres = services.reduce((sum, service) => sum + Number(service.acres || 0), 0);
+  const pendingAcres = services
+    .filter((service) => Number(service.pendingAmount || 0) > 0)
+    .reduce((sum, service) => sum + Number(service.acres || 0), 0);
+
   return (
     <div className="min-h-screen bg-[#F6F2E9] pb-24 font-sans selection:bg-[#4C9A5A]/20">
       {/* Mobile App Header */}
@@ -227,8 +237,23 @@ export default function FarmerProfile() {
             )}
           </div>
 
-          {/* Financial Summary */}
+          {/* Acres Summary */}
           <div className="pt-4 border-t border-black/[0.05]">
+            <p className="text-[10px] uppercase font-bold text-[#1F2A22]/40 tracking-widest mb-3">Acres Summary</p>
+            <div className="grid grid-cols-2 gap-2">
+              <div className="bg-[#F6F2E9]/70 rounded-xl p-3 border border-black/[0.04]">
+                <p className="text-[9px] uppercase font-bold text-[#1F2A22]/45 tracking-wide mb-1">Total Acres</p>
+                <p className="text-sm font-black text-[#1F2A22] break-words">{totalAcres.toFixed(2)}</p>
+              </div>
+              <div className="bg-[#FEF3C7]/50 rounded-xl p-3 border border-[#D97706]/10">
+                <p className="text-[9px] uppercase font-bold text-[#D97706]/70 tracking-wide mb-1">Pending Acres</p>
+                <p className="text-sm font-black text-[#D97706] break-words">{pendingAcres.toFixed(2)}</p>
+              </div>
+            </div>
+          </div>
+
+          {/* Financial Summary */}
+          <div className="pt-4 mt-4 border-t border-black/[0.05]">
             <p className="text-[10px] uppercase font-bold text-[#1F2A22]/40 tracking-widest mb-3">Payment Summary</p>
 
             <div className="grid grid-cols-3 gap-2">

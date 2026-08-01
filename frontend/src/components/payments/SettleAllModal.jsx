@@ -11,6 +11,11 @@ export default function SettleAllModal({ farmerId, farmer, farmerName, totalPend
   const [paidOn, setPaidOn] = useState(todayStr());
   const [mode, setMode] = useState("Cash");
   const [note, setNote] = useState("");
+
+  const [applyDiscount, setApplyDiscount] = useState(false);
+  const [discountAmount, setDiscountAmount] = useState("");
+  const [discountReason, setDiscountReason] = useState("");
+
   const [captcha, setCaptcha] = useState({ a: 0, b: 0 });
   const [answer, setAnswer] = useState("");
   const [error, setError] = useState(null);
@@ -22,6 +27,12 @@ export default function SettleAllModal({ farmerId, farmer, farmerName, totalPend
   // "payments-updated" event fires.
   const [pendingSnapshot] = useState(totalPending);
 
+  // LIVE remaining calculation as discount is typed — the discount is
+  // the only variable amount here, since the rest is always paid in full.
+  const enteredDiscount = applyDiscount ? Number(discountAmount) || 0 : 0;
+  const liveAmountCollected = Math.max(pendingSnapshot - enteredDiscount, 0);
+  const exceedsPending = enteredDiscount > pendingSnapshot;
+
   useEffect(() => {
     setCaptcha({
       a: Math.floor(Math.random() * 9) + 1,
@@ -31,6 +42,19 @@ export default function SettleAllModal({ farmerId, farmer, farmerName, totalPend
 
   const handleConfirm = async () => {
     setError(null);
+
+    if (applyDiscount) {
+      const disc = Number(discountAmount);
+      if (!disc || disc <= 0) {
+        setError("Enter a valid discount amount");
+        return;
+      }
+      if (exceedsPending) {
+        setError(`Discount exceeds total pending (${formatCurrency(pendingSnapshot)})`);
+        return;
+      }
+    }
+
     if (Number(answer) !== captcha.a + captcha.b) {
       setError("Incorrect answer — please try again");
       setCaptcha({
@@ -43,7 +67,14 @@ export default function SettleAllModal({ farmerId, farmer, farmerName, totalPend
 
     setLoading(true);
     try {
-      const { data } = await settleAllForFarmer(farmerId, { paidOn, mode, note });
+      const { data } = await settleAllForFarmer(farmerId, {
+        paidOn,
+        mode,
+        note,
+        applyDiscount,
+        discountAmount: applyDiscount ? Number(discountAmount) : 0,
+        discountReason: applyDiscount ? discountReason : "",
+      });
       setResultServices(data.services);
       setStep("success");
       onSuccess(data.services);
@@ -75,6 +106,18 @@ export default function SettleAllModal({ farmerId, farmer, farmerName, totalPend
             <p className="text-sm text-[#1F2A22]/60 mb-4">
               This will mark all of <span className="font-semibold text-[#1F2A22]">{farmerName}</span>'s unpaid services as fully paid — total <span className="font-bold text-[#C24949]">{formatCurrency(pendingSnapshot)}</span>. Payment records will be created for audit history.
             </p>
+
+            {/* LIVE SUMMARY — updates as discount is typed */}
+            <div className="bg-[#F6F2E9] rounded-2xl p-4 mb-4 flex justify-between items-center">
+              <div>
+                <p className="text-[11px] font-bold text-[#1F2A22]/40 uppercase">Total Pending</p>
+                <p className="font-bold text-[#1F2A22]">{formatCurrency(pendingSnapshot)}</p>
+              </div>
+              <div className="text-right">
+                <p className="text-[11px] font-bold text-[#4C9A5A]/60 uppercase">To Collect</p>
+                <p className="font-black text-[#4C9A5A] text-lg">{formatCurrency(liveAmountCollected)}</p>
+              </div>
+            </div>
 
             <div className="mb-4">
               <label className="block text-xs font-bold text-[#1F2A22]/50 uppercase tracking-wide mb-1.5">Date</label>
@@ -124,6 +167,66 @@ export default function SettleAllModal({ farmerId, farmer, farmerName, totalPend
               />
             </div>
 
+            {/* DISCOUNT */}
+            <div className="border border-black/[0.05] rounded-2xl p-4 mb-4">
+              <label className="block text-xs font-bold text-[#1F2A22]/50 uppercase tracking-wide mb-2">Apply Discount?</label>
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => { setApplyDiscount(false); setDiscountAmount(""); setDiscountReason(""); }}
+                  className={`flex-1 py-2.5 rounded-xl text-sm font-bold ${!applyDiscount ? "bg-[#1F3D2B] text-white" : "bg-[#F6F2E9] text-[#1F2A22]/60"}`}
+                >
+                  No
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setApplyDiscount(true)}
+                  className={`flex-1 py-2.5 rounded-xl text-sm font-bold ${applyDiscount ? "bg-[#D97706] text-white" : "bg-[#F6F2E9] text-[#1F2A22]/60"}`}
+                >
+                  Yes
+                </button>
+              </div>
+
+              {applyDiscount && (
+                <div className="space-y-3 mt-4">
+                  <div>
+                    <label className="block text-xs font-bold text-[#1F2A22]/50 uppercase tracking-wide mb-1.5">Discount Amount (₹)</label>
+                    <input
+                      type="number"
+                      inputMode="numeric"
+                      name="settleDiscountAmount"
+                      autoComplete="off"
+                      value={discountAmount}
+                      onChange={(e) => setDiscountAmount(e.target.value)}
+                      min="1"
+                      placeholder="Enter discount"
+                      required={applyDiscount}
+                      className="w-full bg-white border border-black/[0.08] rounded-xl px-3.5 py-2.5 text-sm font-bold focus:outline-none focus:ring-2 focus:ring-[#4C9A5A]/30"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-[#1F2A22]/50 uppercase tracking-wide mb-1.5">Discount Reason (optional)</label>
+                    <input
+                      name="settleDiscountReason"
+                      autoComplete="off"
+                      value={discountReason}
+                      onChange={(e) => setDiscountReason(e.target.value)}
+                      placeholder="e.g. Regular customer"
+                      className="w-full bg-white border border-black/[0.08] rounded-xl px-3.5 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#4C9A5A]/30"
+                    />
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {exceedsPending && (
+              <div className="bg-[#FCEDED] border border-[#F3C6C6] rounded-xl px-3.5 py-2.5 mb-4">
+                <p className="text-[#C24949] text-sm font-semibold">
+                  Discount exceeds total pending.
+                </p>
+              </div>
+            )}
+
             <div className="bg-[#F6F2E9] rounded-xl p-4 mb-4">
               <label className="block text-xs font-bold text-[#1F2A22]/50 uppercase tracking-wide mb-2">
                 To confirm, solve: {captcha.a} + {captcha.b} = ?
@@ -158,7 +261,7 @@ export default function SettleAllModal({ farmerId, farmer, farmerName, totalPend
               <button
                 type="button"
                 onClick={handleConfirm}
-                disabled={loading || !answer}
+                disabled={loading || !answer || exceedsPending}
                 className="flex-[1.5] bg-[#D97706] text-white rounded-2xl py-3 font-bold text-sm disabled:opacity-50"
               >
                 {loading ? "Clearing..." : "Confirm & Clear"}
@@ -179,10 +282,10 @@ export default function SettleAllModal({ farmerId, farmer, farmerName, totalPend
               Cleared across {resultServices?.length || 0} service(s)
             </p>
 
-            <div className="bg-[#F6F2E9]/50 rounded-2xl p-4 mb-6 flex justify-between items-center text-left border border-black/[0.03]">
+            <div className="bg-[#F6F2E9]/50 rounded-2xl p-4 mb-3 flex justify-between items-center text-left border border-black/[0.03]">
               <div>
                 <p className="text-[11px] font-bold text-[#1F2A22]/40 uppercase tracking-wide mb-0.5">Received</p>
-                <p className="font-black text-[18px] text-[#4C9A5A]">{formatCurrency(pendingSnapshot)}</p>
+                <p className="font-black text-[18px] text-[#4C9A5A]">{formatCurrency(liveAmountCollected)}</p>
               </div>
               <div className="w-px h-10 bg-black/5"></div>
               <div className="text-right">
@@ -190,6 +293,13 @@ export default function SettleAllModal({ farmerId, farmer, farmerName, totalPend
                 <p className="font-bold text-[16px] text-[#4C9A5A]">{formatCurrency(0)}</p>
               </div>
             </div>
+
+            {applyDiscount && (
+              <div className="bg-[#FEF3C7]/50 rounded-2xl p-3 mb-3">
+                <p className="text-[11px] font-bold text-[#D97706] uppercase tracking-wide">Discount Applied</p>
+                <p className="font-black text-[17px] text-[#D97706]">{formatCurrency(Number(discountAmount))}</p>
+              </div>
+            )}
 
             {farmer && (
               <div className="mb-6 text-left">
