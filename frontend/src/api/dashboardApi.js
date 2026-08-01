@@ -1,3 +1,4 @@
 import axiosInstance from "./axiosInstance";
 
-export const getDashboardStats = () => axiosInstance.get("/dashboard");
+export const getDashboardStats = (params = {}) =>
+  axiosInstance.get("/dashboard", { params });
