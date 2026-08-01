@@ -15,6 +15,7 @@ import Profile from "./pages/Profile";
 import AddUser from "./pages/AddUser";
 import StaffPerformance from "./pages/StaffPerformance";
 import StatementPage from "./pages/StatementPage";
+import Expenses from "./pages/Expenses";
 
 function ProtectedLayout({ children }) {
   return (
@@ -124,6 +125,16 @@ export default function App() {
               <ProtectedLayout>
                 <OtpApprovals />
               </ProtectedLayout>
+            }
+          />
+
+          {/* Staff attempting to reach /expenses directly gets redirected */}
+          <Route
+            path="/expenses"
+            element={
+              <AdminProtectedLayout>
+                <Expenses />
+              </AdminProtectedLayout>
             }
           />
         </Routes>
