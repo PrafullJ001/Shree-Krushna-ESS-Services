@@ -323,7 +323,7 @@ export default function StatementPage() {
             >
               {!qrImageError ? (
                 <img
-                  src="/images/upi-qr.png"
+                  src="/upi-qr.png"
                   alt="UPI QR Code"
                   className="w-48 h-48 object-contain"
                   onError={() => setQrImageError(true)}
