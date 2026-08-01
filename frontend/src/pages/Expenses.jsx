@@ -33,6 +33,11 @@ const PRESETS = [
   { label: "All Time", from: "", to: "" },
 ];
 
+// How many entries to show in the Recent Entries list on-screen. This is a
+// display-only cap — totals, grand total, and staff breakdown are still
+// computed from the FULL set of expenses returned by the backend.
+const RECENT_ENTRIES_DISPLAY_LIMIT = 15;
+
 const formatCurrency = (amount) => `₹${Number(amount || 0).toLocaleString("en-IN")}`;
 
 // jsPDF's default font has no ₹ glyph — it renders as a broken character.
@@ -181,6 +186,14 @@ export default function Expenses() {
       setSubmitting(false);
     }
   };
+
+  // Display-only slice for the Recent Entries list — shows only the most
+  // recent 15, in the same order the backend already sorts them (newest
+  // first). Totals/grandTotal/staffTotals stay based on the full data.
+  const recentEntriesToShow = useMemo(
+    () => expenses.slice(0, RECENT_ENTRIES_DISPLAY_LIMIT),
+    [expenses]
+  );
 
   const filteredStaffTotals = useMemo(() => {
     const q = staffSearch.trim().toLowerCase();
@@ -553,15 +566,24 @@ export default function Expenses() {
               </div>
             </button>
 
-            {/* RECENT ENTRIES */}
+            {/* RECENT ENTRIES — capped to the most recent 15, same order as before */}
+            <div className="flex items-center justify-between px-1">
+              <h2 className="text-lg font-bold text-[#1F2A22] tracking-tight">Recent Entries</h2>
+              {recentEntriesToShow.length > 0 && (
+                <span className="text-[11px] font-bold uppercase tracking-wide text-[#4C9A5A] bg-[#E9F3E9] rounded-lg px-2.5 py-1 shadow-sm border border-[#4C9A5A]/10">
+                  {recentEntriesToShow.length} Total
+                </span>
+              )}
+            </div>
+
             <div className="bg-white rounded-[1.5rem] shadow-sm border border-black/[0.04] p-1 overflow-hidden">
-              {expenses.length === 0 ? (
+              {recentEntriesToShow.length === 0 ? (
                 <div className="py-6">
                   <EmptyState icon="🧾" title="No expenses yet" subtitle="Entries you add will show up here" />
                 </div>
               ) : (
                 <div className="divide-y divide-black/5">
-                  {expenses.map((exp) => {
+                  {recentEntriesToShow.map((exp) => {
                     const catMeta = [...CATEGORIES, STAFF_CATEGORY].find((c) => c.value === exp.category);
                     return (
                       <div key={exp._id} className="flex items-center justify-between px-4 py-3.5">

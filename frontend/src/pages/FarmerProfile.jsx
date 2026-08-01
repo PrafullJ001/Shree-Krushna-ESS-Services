@@ -26,6 +26,16 @@ export default function FarmerProfile() {
   const [showSettleModal, setShowSettleModal] = useState(false);
   const [showBulkModal, setShowBulkModal] = useState(false);
 
+  // Acres date-range filter — only affects the Acres Summary numbers.
+  // Defaults to unfiltered (shows totals across ALL services). Only
+  // switches to a filtered view once the user explicitly applies a range.
+  const [showAcresFilter, setShowAcresFilter] = useState(false);
+  const [acresFrom, setAcresFrom] = useState("");
+  const [acresTo, setAcresTo] = useState("");
+  const [appliedAcresFrom, setAppliedAcresFrom] = useState("");
+  const [appliedAcresTo, setAppliedAcresTo] = useState("");
+  const isAcresFilterActive = Boolean(appliedAcresFrom || appliedAcresTo);
+
   const loadData = async () => {
     try {
       const [farmerRes, servicesRes] = await Promise.all([
@@ -88,6 +98,19 @@ export default function FarmerProfile() {
     );
   };
 
+  const handleApplyAcresFilter = () => {
+    setAppliedAcresFrom(acresFrom);
+    setAppliedAcresTo(acresTo);
+  };
+
+  const handleClearAcresFilter = () => {
+    setAcresFrom("");
+    setAcresTo("");
+    setAppliedAcresFrom("");
+    setAppliedAcresTo("");
+    setShowAcresFilter(false);
+  };
+
   if (loading) {
     return <Spinner label="Loading farmer..." />;
   }
@@ -147,20 +170,42 @@ export default function FarmerProfile() {
     ? farmer.fullName.trim().split(/\s+/).slice(0, 2).map((n) => n[0]).join("").toUpperCase()
     : "F";
 
-  // FARMER FINANCIAL SUMMARY
+  // FARMER FINANCIAL SUMMARY — always across ALL services, unaffected by the acres filter
   const totalBill = services.reduce((sum, service) => sum + Number(service.totalBill || 0), 0);
   const totalCollected = services.reduce((sum, service) => sum + Number(service.amountPaid || 0), 0);
   const totalPending = services.reduce((sum, service) => sum + Number(service.pendingAmount || 0), 0);
 
-  // ACRES SUMMARY — total acres across all services, and "pending acres"
-  // (acres belonging to services that still have money owed). This is
-  // derived live from `services`, so it auto-adjusts the moment a bulk
-  // payment or "Clear All Pending" fully settles a service — no separate
-  // tracking needed, it just reflects current state.
-  const totalAcres = services.reduce((sum, service) => sum + Number(service.acres || 0), 0);
-  const pendingAcres = services
-    .filter((service) => Number(service.pendingAmount || 0) > 0)
-    .reduce((sum, service) => sum + Number(service.acres || 0), 0);
+  // ACRES SUMMARY — filtered by service date range if a filter is applied,
+  // otherwise shows totals across every service (the permanent default view).
+  const acresSourceServices = isAcresFilterActive
+    ? services.filter((service) => {
+        const d = new Date(service.serviceDate);
+        if (appliedAcresFrom && d < new Date(appliedAcresFrom)) return false;
+        if (appliedAcresTo) {
+          const toEnd = new Date(appliedAcresTo);
+          toEnd.setHours(23, 59, 59, 999);
+          if (d > toEnd) return false;
+        }
+        return true;
+      })
+    : services;
+
+  const totalAcres = acresSourceServices.reduce((sum, service) => sum + Number(service.acres || 0), 0);
+
+  // Pending Acres is PRORATED by how much of each service's bill is still
+  // unpaid — not all-or-nothing. A service that's 50% paid only contributes
+  // 50% of its acres here. Since this reads service.pendingAmount/totalBill
+  // directly from `services` state, it recalculates automatically the
+  // moment a bulk or settle-all payment updates those services — including
+  // partial payments across multiple services at once.
+  const pendingAcres = acresSourceServices.reduce((sum, service) => {
+    const bill = Number(service.totalBill || 0);
+    const pending = Number(service.pendingAmount || 0);
+    const acres = Number(service.acres || 0);
+    if (bill <= 0 || pending <= 0) return sum;
+    const unpaidRatio = Math.min(pending / bill, 1);
+    return sum + acres * unpaidRatio;
+  }, 0);
 
   return (
     <div className="min-h-screen bg-[#F6F2E9] pb-24 font-sans selection:bg-[#4C9A5A]/20">
@@ -237,10 +282,75 @@ export default function FarmerProfile() {
             )}
           </div>
 
-          {/* Acres Summary — admin only, since pending acres derives from payment status */}
+          {/* Acres Summary — admin only. Includes a date-range filter that
+              only changes the numbers when explicitly applied; otherwise
+              shows totals across every service, as before. */}
           {isAdmin && (
           <div className="pt-4 border-t border-black/[0.05]">
-            <p className="text-[10px] uppercase font-bold text-[#1F2A22]/40 tracking-widest mb-3">Acres Summary</p>
+            <div className="flex items-center justify-between mb-3">
+              <p className="text-[10px] uppercase font-bold text-[#1F2A22]/40 tracking-widest">
+                Acres Summary
+                {isAcresFilterActive && (
+                  <span className="ml-2 normal-case font-semibold text-[#4C9A5A] tracking-normal">(filtered)</span>
+                )}
+              </p>
+              <button
+                type="button"
+                onClick={() => setShowAcresFilter((v) => !v)}
+                className="flex items-center gap-1 text-[11px] font-bold text-[#4C9A5A] bg-[#E9F3E9] px-2.5 py-1 rounded-lg"
+              >
+                <svg viewBox="0 0 24 24" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth="2">
+                  <rect x="3" y="4" width="18" height="18" rx="2" strokeLinecap="round" strokeLinejoin="round" />
+                  <path d="M16 2v4M8 2v4M3 10h18" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+                Filter
+              </button>
+            </div>
+
+            {showAcresFilter && (
+              <div className="bg-[#F6F2E9]/70 rounded-2xl p-3.5 mb-3 space-y-3">
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <label className="block text-[10px] font-bold text-[#1F2A22]/50 uppercase tracking-wide mb-1">From</label>
+                    <input
+                      type="date"
+                      name="acresFrom"
+                      value={acresFrom}
+                      onChange={(e) => setAcresFrom(e.target.value)}
+                      className="w-full bg-white border border-black/[0.08] rounded-lg px-2.5 py-2 text-xs"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-bold text-[#1F2A22]/50 uppercase tracking-wide mb-1">To</label>
+                    <input
+                      type="date"
+                      name="acresTo"
+                      value={acresTo}
+                      onChange={(e) => setAcresTo(e.target.value)}
+                      className="w-full bg-white border border-black/[0.08] rounded-lg px-2.5 py-2 text-xs"
+                    />
+                  </div>
+                </div>
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={handleClearAcresFilter}
+                    className="flex-1 bg-white border border-black/[0.08] text-[#1F2A22]/60 rounded-lg py-2 text-xs font-bold"
+                  >
+                    Show All
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleApplyAcresFilter}
+                    disabled={!acresFrom && !acresTo}
+                    className="flex-[1.5] bg-[#4C9A5A] text-white rounded-lg py-2 text-xs font-bold disabled:opacity-50"
+                  >
+                    Apply
+                  </button>
+                </div>
+              </div>
+            )}
+
             <div className="grid grid-cols-2 gap-2">
               <div className="bg-[#F6F2E9]/70 rounded-xl p-3 border border-black/[0.04]">
                 <p className="text-[9px] uppercase font-bold text-[#1F2A22]/45 tracking-wide mb-1">Total Acres</p>
