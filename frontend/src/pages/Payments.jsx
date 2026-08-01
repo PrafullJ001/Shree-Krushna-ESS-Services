@@ -581,9 +581,9 @@ export default function Payments() {
 
                     <div className="flex flex-wrap gap-1.5 mb-3.5">
                       {r.billNo ? (
-                        <span className="text-[11px] font-semibold text-[#1F2A22]/60 bg-[#F6F2E9] px-2 py-1 rounded-md">Bill- {r.billNo}</span>
+                        <span className="text-[11px] font-semibold text-[#1F2A22]/60 bg-[#F6F2E9] px-2 py-1 rounded-md">Bill:  {r.billNo}</span>
                       ) : (
-                        <span className="text-[11px] font-semibold text-[#C24949] bg-[#FCEDED] border border-[#F3C6C6] px-2 py-1 rounded-md">No Bill No.</span>
+                        <span className="text-[11px] font-semibold text-[#C24949] bg-[#FCEDED] border border-[#F3C6C6] px-2 py-1 rounded-md">No Bill</span>
                       )}
                       {r.serviceType && (
                         <span className="text-[11px] font-semibold text-[#4C9A5A] bg-[#E9F3E9] px-2 py-1 rounded-md">{r.serviceType}</span>

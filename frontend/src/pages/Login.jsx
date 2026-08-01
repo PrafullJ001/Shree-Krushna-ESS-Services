@@ -22,26 +22,26 @@ export default function Login() {
 
   const navigate = useNavigate();
 
-  // Local state to manage the 2-second display of the main login error
+  // Local state to manage the 1.5-second display of the main login error
   const [localError, setLocalError] = useState("");
 
-  // Clear main login error after 2 seconds
+  // Clear main login error after 1.5 seconds
   useEffect(() => {
     if (error) {
       setLocalError(error);
       const timer = setTimeout(() => {
         setLocalError("");
-      }, 2000);
+      }, 1500);
       return () => clearTimeout(timer);
     }
   }, [error]);
 
-  // Clear OTP error after 2 seconds
+  // Clear OTP error after 3.5 seconds (more time to read)
   useEffect(() => {
     if (otpError) {
       const timer = setTimeout(() => {
         setOtpError("");
-      }, 2000);
+      }, 3500);
       return () => clearTimeout(timer);
     }
   }, [otpError]);
@@ -410,7 +410,7 @@ export default function Login() {
         )}
 
         <p className="text-center text-xs text-[#3d413d] mt-6">
-          Trouble signing in? Contact your farm admin.
+          Trouble signing in? Contact your admin.
         </p>
 
         {/* Footer credit */}

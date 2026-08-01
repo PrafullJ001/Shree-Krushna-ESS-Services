@@ -358,7 +358,7 @@ export default function FarmerHistoryTable({
                       />
                     </svg>
 
-                    Bill- {s.billNo}
+                    Bill:  {s.billNo}
                   </span>
                 ) : billNoEditingId === s._id ? (
                   <span className="flex items-center gap-1.5 bg-[#FCEDED] border border-[#F3C6C6] px-2 py-1.5 rounded-md">
@@ -404,7 +404,7 @@ export default function FarmerHistoryTable({
                         <path d="M12 8v5M12 16h.01" strokeLinecap="round" />
                       </svg>
 
-                      No Bill No.
+                      No Bill.
                     </span>
                     {canEdit && (
                       <button

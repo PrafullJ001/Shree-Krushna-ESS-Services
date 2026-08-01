@@ -25,7 +25,7 @@ exports.getDashboardStats = async (req, res) => {
   .populate('farmer', 'fullName village mobile')
   .populate('createdBy', 'name role')
   .sort({ updatedAt: -1 }) // most recently added/edited first
-  .limit(5),
+  .limit(15),
     ]);
 
     const summary = totals[0] || {

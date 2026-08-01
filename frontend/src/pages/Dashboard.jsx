@@ -61,6 +61,9 @@ export default function Dashboard() {
     .filter((s) => s.farmer)
     .sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt));
 
+  // Only ever display the 15 most recent services on the dashboard
+  const displayedRecentServices = visibleRecentServices.slice(0, 15);
+
   // Check if any amount is 50 Lakhs (5,000,000) or more
   const hasLargeAmounts =
     Number(stats?.totalBillAmount || 0) >= 5000000 ||
@@ -147,15 +150,15 @@ export default function Dashboard() {
       <div className={`px-5 ${isAdmin ? "mt-8" : "-mt-12 relative z-10"} max-w-5xl mx-auto`}>
         <div className="flex items-end justify-between mb-4 px-1">
           <h2 className="text-lg font-bold text-[#1F2A22] tracking-tight">Recent Services</h2>
-          {visibleRecentServices.length > 0 && (
+          {displayedRecentServices.length > 0 && (
             <span className="text-[11px] font-bold uppercase tracking-wide text-[#4C9A5A] bg-[#E9F3E9] rounded-lg px-2.5 py-1 shadow-sm border border-[#4C9A5A]/10">
-              {visibleRecentServices.length} total
+              {displayedRecentServices.length} total
             </span>
           )}
         </div>
 
         <div className="bg-white rounded-[1.5rem] shadow-sm border border-black/[0.04] p-1 overflow-hidden transition-all">
-          {visibleRecentServices.length === 0 ? (
+          {displayedRecentServices.length === 0 ? (
             <div className="py-6">
               <EmptyState
                 icon="🌱"
@@ -165,7 +168,7 @@ export default function Dashboard() {
             </div>
           ) : (
             <div className="flex flex-col">
-              {visibleRecentServices.slice(0, 5).map((service) => (
+              {displayedRecentServices.map((service) => (
                 <div
                   key={service._id}
                   onClick={() => service.farmer && navigate(`/farmers/${service.farmer._id}`)}

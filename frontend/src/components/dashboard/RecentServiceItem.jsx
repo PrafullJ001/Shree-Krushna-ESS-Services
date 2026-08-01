@@ -49,7 +49,22 @@ export default function RecentServiceItem({ service }) {
             <span className="truncate max-w-[70px]">{service.cropName}</span>
             <span className="w-1 h-1 rounded-full bg-[#1F2A22]/20"></span>
             <span>{date}</span>
+            {service.acres != null && (
+              <>
+                <span className="w-1 h-1 rounded-full bg-[#1F2A22]/20"></span>
+                <span>{service.acres} ac</span>
+              </>
+            )}
           </p>
+          {service.billNo ? (
+            <p className="text-[11px] font-semibold text-[#1F2A22]/40 mt-1">
+              Bill:  {service.billNo}
+            </p>
+          ) : (
+            <p className="text-[11px] font-semibold text-[#C24949] mt-1">
+              No Bill.
+            </p>
+          )}
         </div>
       </div>
 
