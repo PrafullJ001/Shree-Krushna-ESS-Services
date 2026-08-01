@@ -207,7 +207,17 @@ export default function StatementPage() {
 
           <div className="bg-white rounded-[1.5rem] shadow-sm border border-black/[0.04] overflow-hidden divide-y divide-black/[0.04]">
             {pendingServices.length === 0 && (
-              <p className="text-sm text-[#1F2A22]/50 text-center py-8">No pending services — all caught up ✅</p>
+              <div className="flex flex-col items-center text-center py-10 px-6">
+                <div className="h-16 w-16 rounded-2xl bg-[#E9F3E9] border border-[#4C9A5A]/15 flex items-center justify-center mb-4 shadow-inner">
+                  <svg viewBox="0 0 24 24" className="h-8 w-8 text-[#4C9A5A]" fill="none" stroke="currentColor" strokeWidth="2.2">
+                    <path d="M20 6L9 17l-5-5" strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
+                </div>
+                <p className="text-[#1F3D2B] text-[15px] font-bold leading-tight mb-1">No Payment Pending</p>
+                <p className="text-[#1F2A22]/45 text-[12px] font-medium leading-snug max-w-[220px]">
+                  You're all caught up — every service has been fully paid.
+                </p>
+              </div>
             )}
             {pendingServices.map((s) => {
               const servicePayments = payments.filter((p) => p.serviceRecord?._id === s._id);
@@ -354,6 +364,19 @@ export default function StatementPage() {
               </svg>
               <p className="text-sm font-semibold text-[#4C9A5A]">
                 PhonePe: 9637972009
+              </p>
+            </div>
+
+            {/* Post-payment tip */}
+            <div className="w-full mt-4 bg-gradient-to-br from-[#FEF3C7]/70 to-[#FEF3C7]/30 border border-[#D97706]/15 rounded-2xl px-4 py-3.5 flex items-start gap-3 text-left">
+              <div className="h-8 w-8 rounded-lg bg-white flex items-center justify-center shadow-sm border border-[#D97706]/15 shrink-0">
+                <svg viewBox="0 0 24 24" className="h-4 w-4 text-[#D97706]" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M13 2L3 14h7l-1 8 10-12h-7l1-8z" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+              </div>
+              <p className="text-[12px] font-medium text-[#8A5A0A] leading-snug">
+                <span className="font-bold">After payment,</span> send a screenshot or contact{" "}
+                <span className="font-bold">9637972009</span> so we can record your payment.
               </p>
             </div>
           </div>

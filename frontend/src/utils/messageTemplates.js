@@ -1,12 +1,18 @@
 import { formatCurrency } from "./formatCurrency";
 import { formatDate } from "./formatDate";
-import { BUSINESS_NAME } from "../constants/business";
+import { BUSINESS_NAME, BUSINESS_CONTACT, BUSINESS_PHONEPE  } from "../constants/business";
 
 const statusLine = (paid, pending) => {
   if (pending <= 0) return "पूर्ण भरणा झाला आहे ✅";
   if (paid > 0) return "अंशतः भरणा झाला आहे";
   return "भरणा बाकी आहे";
 };
+
+// Common footer — appended to every outgoing message so the farmer always
+// has the business name, contact number, and PhonePe number to reach us.
+const businessFooter = () => `${BUSINESS_NAME}${
+  BUSINESS_CONTACT ? `\nसंपर्क: ${BUSINESS_CONTACT}` : ""
+}${BUSINESS_PHONEPE ? `\nPhonePe: ${BUSINESS_PHONEPE}` : ""}`;
 
 export const buildServiceMessage = (farmer, service) => {
   const paid = Number(service.amountPaid || 0);
@@ -26,7 +32,7 @@ export const buildServiceMessage = (farmer, service) => {
 
 आधुनिक तंत्रज्ञान आधुनिक शेती.
 धन्यवाद!
-${BUSINESS_NAME}`;
+${businessFooter()}`;
 };
 
 export const buildPaymentMessage = (farmer, service, paymentAmount, discountAmount = 0) => {
@@ -45,7 +51,7 @@ ${discountAmount > 0 ? `सवलत: ${formatCurrency(discountAmount)}\n` : ""}
 
 आधुनिक तंत्रज्ञान आधुनिक शेती.
 धन्यवाद!
-${BUSINESS_NAME}`;
+${businessFooter()}`;
 };
 
 export const buildReminderMessage = (farmer, totals) => {
@@ -63,7 +69,7 @@ ${totalPending > 0 ? "कृपया लवकरात लवकर शिल�
 
 आधुनिक तंत्रज्ञान आधुनिक शेती.
 धन्यवाद!
-${BUSINESS_NAME}`;
+${businessFooter()}`;
 };
 
 export const buildBulkPaymentMessage = (farmer, paymentAmount, totals) => {
@@ -81,7 +87,7 @@ export const buildBulkPaymentMessage = (farmer, paymentAmount, totals) => {
 
 आधुनिक तंत्रज्ञान आधुनिक शेती.
 धन्यवाद!
-${BUSINESS_NAME}`;
+${businessFooter()}`;
 };
 
 export const buildSettleAllMessage = (farmer, totals) => {
@@ -97,5 +103,5 @@ export const buildSettleAllMessage = (farmer, totals) => {
 
 आधुनिक तंत्रज्ञान आधुनिक शेती.
 धन्यवाद!
-${BUSINESS_NAME}`;
+${businessFooter()}`;
 };
