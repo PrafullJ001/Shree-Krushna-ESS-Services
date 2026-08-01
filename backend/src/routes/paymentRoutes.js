@@ -14,7 +14,11 @@ const { protect, adminOnly } = require('../middleware/authMiddleware');
 
 router.use(protect);
 
-router.post('/', adminOnly, addPayment);
+// Staff need to record a payment collected on-site during their own
+// service entry (AddService.jsx calls this when "Bill Paid?" = Yes),
+// so this one is intentionally NOT admin-only.
+router.post('/', addPayment);
+
 router.get('/service/:serviceRecordId', adminOnly, getPaymentsForService);
 router.get('/farmer/:farmerId', adminOnly, getPaymentsForFarmer);
 router.get('/pending', adminOnly, getPendingPayments);

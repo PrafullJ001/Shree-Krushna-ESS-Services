@@ -221,7 +221,7 @@ export default function Dashboard() {
       {/* Recent services — visible to everyone */}
       <div className={`px-5 ${isAdmin ? "mt-8" : "-mt-12 relative z-10"} max-w-5xl mx-auto`}>
         <div className="flex items-end justify-between mb-4 px-1">
-          <h2 className="text-lg font-bold text-[#1F2A22] tracking-tight">Recent Services</h2>
+          <h2 className="text-lg font-bold text-[#8a928c] tracking-tight">Recent Services</h2>
           {displayedRecentServices.length > 0 && (
             <span className="text-[11px] font-bold uppercase tracking-wide text-[#4C9A5A] bg-[#E9F3E9] rounded-lg px-2.5 py-1 shadow-sm border border-[#4C9A5A]/10">
               {displayedRecentServices.length} shown
