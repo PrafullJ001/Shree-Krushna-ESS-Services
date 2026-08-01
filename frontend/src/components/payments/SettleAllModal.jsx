@@ -89,9 +89,9 @@ export default function SettleAllModal({ farmerId, farmer, farmerName, totalPend
   const totalBillSettled = resultServices?.reduce((sum, s) => sum + Number(s.totalBill || 0), 0) || 0;
   const totalCollected = resultServices?.reduce((sum, s) => sum + Number(s.amountPaid || 0), 0) || 0;
 
-  return (
-    <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-[1.5rem] shadow-lg w-full max-w-sm max-h-[90vh] flex flex-col animate-in zoom-in-95 fade-in duration-200 overflow-hidden">
+   return (
+    <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-[60] p-4 pb-24">
+      <div className="bg-white rounded-[1.5rem] shadow-lg w-full max-w-sm max-h-[75vh] flex flex-col animate-in zoom-in-95 fade-in duration-200 overflow-hidden">
         {step === "confirm" && (
           <>
             {/* Scrollable content area — buttons live outside this in a sticky footer below */}
