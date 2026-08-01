@@ -22,9 +22,8 @@ export default function StatementPage() {
   // Tracks whether the UPI QR code is shown full-screen for easier scanning
   const [isQrZoomed, setIsQrZoomed] = useState(false);
 
-  // Tracks whether each QR image failed to load, independently, so a
-  // failure in one view doesn't hide a working image in the other
-  const [qrImageError, setQrImageError] = useState(false);
+  // Tracks whether the zoomed QR image failed to load (shows a clean
+  // placeholder instead of a broken-image icon)
   const [qrZoomImageError, setQrZoomImageError] = useState(false);
 
   // Single source of truth for the QR image path — put the actual file at
@@ -326,27 +325,18 @@ export default function StatementPage() {
               className="w-full max-w-xs rounded-2xl border border-black/[0.06] px-8 py-3 bg-white shadow-inner mb-3 flex items-center justify-center active:scale-[0.98] transition-transform"
               aria-label="Tap to view QR code"
             >
-              {!qrImageError ? (
-                <img
-                  src={UPI_QR_IMAGE}
-                  alt="UPI QR Code"
-                  className="w-48 h-48 object-contain"
-                  onError={() => setQrImageError(true)}
-                />
-              ) : (
-                <div className="w-48 h-48 rounded-xl bg-gradient-to-br from-[#E9F3E9] to-[#F6F2E9] flex flex-col items-center justify-center gap-2.5">
-                  <div className="h-12 w-12 rounded-full bg-white flex items-center justify-center shadow-sm border border-[#4C9A5A]/15">
-                    <svg viewBox="0 0 24 24" className="h-6 w-6 text-[#4C9A5A]" fill="none" stroke="currentColor" strokeWidth="1.8">
-                      <rect x="3" y="3" width="7" height="7" rx="1.2" strokeLinecap="round" strokeLinejoin="round" />
-                      <rect x="14" y="3" width="7" height="7" rx="1.2" strokeLinecap="round" strokeLinejoin="round" />
-                      <rect x="3" y="14" width="7" height="7" rx="1.2" strokeLinecap="round" strokeLinejoin="round" />
-                      <path d="M14 14h3v3h-3zM19 14h2v2h-2zM14 19h2v2h-2zM19 19h2v2h-2z" />
-                    </svg>
-                  </div>
-                  <p className="text-[#2B5439] text-[13px] font-bold leading-tight">Tap to view QR</p>
-                  <p className="text-[#1F2A22]/40 text-[10px] font-semibold px-4 leading-snug">Scan to pay via UPI</p>
+              <div className="w-48 h-48 rounded-xl bg-gradient-to-br from-[#E9F3E9] to-[#F6F2E9] flex flex-col items-center justify-center gap-2.5">
+                <div className="h-12 w-12 rounded-full bg-white flex items-center justify-center shadow-sm border border-[#4C9A5A]/15">
+                  <svg viewBox="0 0 24 24" className="h-6 w-6 text-[#4C9A5A]" fill="none" stroke="currentColor" strokeWidth="1.8">
+                    <rect x="3" y="3" width="7" height="7" rx="1.2" strokeLinecap="round" strokeLinejoin="round" />
+                    <rect x="14" y="3" width="7" height="7" rx="1.2" strokeLinecap="round" strokeLinejoin="round" />
+                    <rect x="3" y="14" width="7" height="7" rx="1.2" strokeLinecap="round" strokeLinejoin="round" />
+                    <path d="M14 14h3v3h-3zM19 14h2v2h-2zM14 19h2v2h-2zM19 19h2v2h-2z" />
+                  </svg>
                 </div>
-              )}
+                <p className="text-[#2B5439] text-[13px] font-bold leading-tight">Tap here to view QR</p>
+                <p className="text-[#1F2A22]/40 text-[10px] font-semibold px-4 leading-snug">Scan to pay via UPI</p>
+              </div>
             </button>
 
             <p className="text-[11px] font-semibold text-[#1F2A22]/40 -mt-1 mb-1">
