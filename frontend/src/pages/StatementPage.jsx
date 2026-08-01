@@ -22,9 +22,14 @@ export default function StatementPage() {
   // Tracks whether the UPI QR code is shown full-screen for easier scanning
   const [isQrZoomed, setIsQrZoomed] = useState(false);
 
-  // Tracks whether the QR image file failed to load (shows a clean
-  // placeholder instead of a broken-image icon)
+  // Tracks whether each QR image failed to load, independently, so a
+  // failure in one view doesn't hide a working image in the other
   const [qrImageError, setQrImageError] = useState(false);
+  const [qrZoomImageError, setQrZoomImageError] = useState(false);
+
+  // Single source of truth for the QR image path — put the actual file at
+  // public/upi-qr.png in your frontend so this path resolves correctly.
+  const UPI_QR_IMAGE = "/upi-qr.png";
 
   const toggleServiceHistory = (serviceId) => {
     setExpandedServices((prev) => {
@@ -311,19 +316,19 @@ export default function StatementPage() {
         {/* Pay Now — UPI QR code */}
         <div className="mt-6">
           <div className="bg-white rounded-[1.5rem] shadow-sm border border-black/[0.04] p-5 flex flex-col items-center text-center">
-            <p className="text-[11px] font-bold uppercase tracking-widest text-[#1F2A22]/40 mb-3">
+            <p className="text-[12px] font-black uppercase tracking-widest text-[#1F2A22] mb-3">
               Pay Now
             </p>
 
             <button
               type="button"
               onClick={() => setIsQrZoomed(true)}
-              className="rounded-2xl border border-black/[0.06] p-2.5 bg-white shadow-inner mb-3 active:scale-[0.98] transition-transform"
+              className="w-full max-w-xs rounded-2xl border border-black/[0.06] px-8 py-3 bg-white shadow-inner mb-3 flex items-center justify-center active:scale-[0.98] transition-transform"
               aria-label="Tap to view QR code"
             >
               {!qrImageError ? (
                 <img
-                  src="/upi-qr.png"
+                  src={UPI_QR_IMAGE}
                   alt="UPI QR Code"
                   className="w-48 h-48 object-contain"
                   onError={() => setQrImageError(true)}
@@ -383,12 +388,12 @@ export default function StatementPage() {
           </button>
 
           <div className="bg-white rounded-3xl p-4 shadow-2xl max-w-sm w-full">
-            {!qrImageError ? (
+            {!qrZoomImageError ? (
               <img
-                src="/upi-qr.png"
+                src={UPI_QR_IMAGE}
                 alt="UPI QR Code"
                 className="w-full h-auto object-contain"
-                onError={() => setQrImageError(true)}
+                onError={() => setQrZoomImageError(true)}
               />
             ) : (
               <div className="w-full aspect-square rounded-2xl bg-gradient-to-br from-[#E9F3E9] to-[#F6F2E9] flex flex-col items-center justify-center gap-3">
