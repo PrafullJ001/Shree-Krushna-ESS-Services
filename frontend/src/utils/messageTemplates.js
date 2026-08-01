@@ -12,7 +12,7 @@ export const buildServiceMessage = (farmer, service) => {
   const paid = Number(service.amountPaid || 0);
   const pending = Number(service.pendingAmount || 0);
 
-  return `नमस्कार, प्रिय शेतकरी ${farmer.fullName} 🙏
+  return `नमस्कार! प्रिय शेतकरी, ${farmer.fullName} 🙏
 
 आपली फवारणी सेवा यशस्वीरित्या पूर्ण झाली आहे. ✅
 
@@ -33,7 +33,7 @@ export const buildPaymentMessage = (farmer, service, paymentAmount, discountAmou
   const paid = Number(service.amountPaid || 0);
   const pending = Number(service.pendingAmount || 0);
 
-  return `नमस्कार, प्रिय शेतकरी ${farmer.fullName} 🙏
+  return `नमस्कार! प्रिय शेतकरी, ${farmer.fullName} 🙏
 
 आपले पेमेंट यशस्वीरित्या स्वीकारले गेले आहे ✅
 
@@ -51,7 +51,7 @@ ${BUSINESS_NAME}`;
 export const buildReminderMessage = (farmer, totals) => {
   const { totalBill, totalCollected, totalPending } = totals;
 
-  return `नमस्कार, प्रिय शेतकरी ${farmer.fullName} 🙏
+  return `नमस्कार! प्रिय शेतकरी, ${farmer.fullName} 🙏
 
 ही आपल्या खात्याच्या स्थितीबद्दल आठवण आहे.
 
@@ -69,7 +69,7 @@ ${BUSINESS_NAME}`;
 export const buildBulkPaymentMessage = (farmer, paymentAmount, totals) => {
   const { totalBill, totalCollected, totalPending } = totals;
 
-  return `नमस्कार, प्रिय शेतकरी ${farmer.fullName} 🙏
+  return `नमस्कार! प्रिय शेतकरी, ${farmer.fullName} 🙏
 
 आपले पेमेंट यशस्वीरित्या स्वीकारले गेले आहे ✅
 
@@ -87,7 +87,7 @@ ${BUSINESS_NAME}`;
 export const buildSettleAllMessage = (farmer, totals) => {
   const { totalBill, totalCollected } = totals;
 
-  return `नमस्कार, प्रिय शेतकरी ${farmer.fullName} 🙏
+  return `नमस्कार! प्रिय शेतकरी, ${farmer.fullName} 🙏
 
 आपले खाते पूर्णपणे सेटल झाले आहे ✅
 
