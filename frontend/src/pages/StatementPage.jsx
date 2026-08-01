@@ -364,7 +364,7 @@ export default function StatementPage() {
 
           <div className="bg-white rounded-3xl p-4 shadow-2xl max-w-sm w-full">
             <img
-              src="/images/upi-qr.png"
+              src="/upi-qr.png"
               alt="UPI QR Code"
               className="w-full h-auto object-contain"
             />
