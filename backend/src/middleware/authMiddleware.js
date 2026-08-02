@@ -14,6 +14,18 @@ exports.protect = async (req, res, next) => {
       if (!req.user) {
         return res.status(401).json({ message: 'Not authorized, user not found' });
       }
+
+      // Instant revocation check: if an admin has signed this user out
+      // since this token was issued, tokenVersion on the token won't
+      // match the current value on the user — reject immediately even
+      // though the token itself is still cryptographically valid.
+      const tokenVersion = decoded.tokenVersion ?? 0;
+      if (tokenVersion !== (req.user.tokenVersion ?? 0)) {
+        return res.status(401).json({
+          message: 'Session revoked. Please log in again.',
+        });
+      }
+
       return next();
     } catch (err) {
       return res.status(401).json({ message: 'Not authorized, token failed' });

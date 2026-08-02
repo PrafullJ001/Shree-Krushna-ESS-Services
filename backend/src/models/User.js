@@ -46,6 +46,16 @@ const userSchema = new mongoose.Schema(
       default: [],
     },
 
+    // Bumped whenever an admin force-signs-out this user. Every JWT
+    // embeds the tokenVersion that was current when it was issued;
+    // `protect` compares that against this live value on every request,
+    // so incrementing this instantly invalidates all existing tokens
+    // for this user — not just future logins.
+    tokenVersion: {
+      type: Number,
+      default: 0,
+    },
+
     // OTP for password reset / device approval
     otp: {
       type: String,

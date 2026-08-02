@@ -16,6 +16,7 @@ import AddUser from "./pages/AddUser";
 import StaffPerformance from "./pages/StaffPerformance";
 import StatementPage from "./pages/StatementPage";
 import Expenses from "./pages/Expenses";
+import ManageStaffLogin from "./pages/ManageStaffLogin";
 
 function ProtectedLayout({ children }) {
   return (
@@ -100,6 +101,16 @@ export default function App() {
             element={
               <AdminProtectedLayout>
                 <Expenses />
+              </AdminProtectedLayout>
+            }
+          />
+
+          {/* Manage Staff Login — admin only, matches Farmers/Payments/Expenses pattern */}
+          <Route
+            path="/manage-staff-login"
+            element={
+              <AdminProtectedLayout>
+                <ManageStaffLogin />
               </AdminProtectedLayout>
             }
           />

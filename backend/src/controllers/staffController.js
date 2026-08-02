@@ -124,11 +124,49 @@ exports.getStaffPerformanceForUser = async (req, res) => {
 
 // @desc  List all staff/admin accounts — lightweight, for pickers like
 //        Add Service's "Added By" dropdown (no performance aggregation).
+//        Now also includes trustedDevices so the Manage Staff Login page
+//        can show how many devices a staff member is currently trusted on.
 // @route GET /api/staff
 exports.getAllStaff = async (req, res) => {
   try {
-    const staff = await User.find({}).select("name role mobile").sort({ name: 1 });
+    const staff = await User.find({})
+      .select("name role mobile trustedDevices")
+      .sort({ name: 1 });
     res.json(staff);
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+};
+
+// @desc  Sign out a staff member INSTANTLY from all devices, even mid-session.
+//        Bumping tokenVersion invalidates every existing token for this user
+//        right away — `protect` rejects any request whose token carries an
+//        older tokenVersion, on the very next API call they make. Clearing
+//        trustedDevices additionally means their next fresh login also
+//        requires a new OTP device approval, same as before.
+// @route POST /api/staff/:id/signout
+exports.signOutStaff = async (req, res) => {
+  try {
+    const user = await User.findById(req.params.id);
+
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    if (user.role !== 'staff') {
+      return res.status(400).json({
+        message: 'Only staff accounts can be signed out this way',
+      });
+    }
+
+    user.trustedDevices = [];
+    user.tokenVersion = (user.tokenVersion || 0) + 1;
+    await user.save();
+
+    res.json({
+      message: `${user.name} has been signed out immediately`,
+      userId: user._id,
+    });
   } catch (err) {
     res.status(500).json({ message: err.message });
   }

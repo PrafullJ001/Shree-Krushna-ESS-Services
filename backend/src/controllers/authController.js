@@ -72,7 +72,7 @@ exports.registerUser = async (req, res) => {
       mobile: user.mobile,
       email: user.email,
       role: user.role,
-      token: generateToken(user._id),
+      token: generateToken(user._id, user.tokenVersion),
     });
   } catch (err) {
     if (err.code === 11000) {
@@ -200,7 +200,8 @@ exports.loginUser = async (req, res) => {
       businessName:
         user.businessName,
       token: generateToken(
-        user._id
+        user._id,
+        user.tokenVersion
       ),
     });
   } catch (err) {
@@ -516,7 +517,8 @@ exports.verifyDevice = async (
       businessName:
         user.businessName,
       token: generateToken(
-        user._id
+        user._id,
+        user.tokenVersion
       ),
     });
   } catch (err) {

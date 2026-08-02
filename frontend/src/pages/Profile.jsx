@@ -354,6 +354,58 @@ export default function Profile() {
           </button>
         )}
 
+        {/* Manage Staff Login - Admin Only */}
+        {isAdmin && (
+          <button
+            onClick={() => navigate("/manage-staff-login")}
+            className="w-full bg-white rounded-[1.5rem] shadow-sm border border-black/[0.04] p-5 flex items-center justify-between text-left active:scale-[0.98] transition-all group"
+          >
+            <div className="flex items-center gap-4">
+              <div className="h-12 w-12 rounded-2xl bg-[#EEF2FF] text-[#4F5FAD] flex items-center justify-center shrink-0 border border-[#4F5FAD]/10">
+                <svg
+                  viewBox="0 0 24 24"
+                  className="w-6 h-6"
+                  fill="none"
+                >
+                  <path
+                    d="M16 17l5-5-5-5M21 12H9M13 21H6a2 2 0 01-2-2V5a2 2 0 012-2h7"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                </svg>
+              </div>
+
+              <div>
+                <p className="font-bold text-[#1F2A22] text-base leading-tight mb-0.5">
+                  Manage Staff Login
+                </p>
+
+                <p className="text-[13px] text-[#1F2A22]/50 font-medium">
+                  View and sign out logged-in staff
+                </p>
+              </div>
+            </div>
+
+            <div className="text-[#1F2A22]/20 group-hover:text-[#4F5FAD] group-active:translate-x-1 transition-all">
+              <svg
+                viewBox="0 0 24 24"
+                className="w-5 h-5"
+                fill="none"
+              >
+                <path
+                  d="M9 5l7 7-7 7"
+                  stroke="currentColor"
+                  strokeWidth="2.5"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              </svg>
+            </div>
+          </button>
+        )}
+
         {/* Expenses - Admin Only */}
         {isAdmin && (
           <button
@@ -410,13 +462,13 @@ export default function Profile() {
         {isAdmin && (
           <button
             onClick={() => navigate("/staff-performance")}
-            className="w-full bg-white rounded-2xl shadow-sm border border-black/[0.04] p-4 flex items-center justify-between text-left active:scale-[0.98] transition-all group"
+            className="w-full bg-white rounded-[1.5rem] shadow-sm border border-black/[0.04] p-5 flex items-center justify-between text-left active:scale-[0.98] transition-all group"
           >
             <div className="flex items-center gap-4">
-              <div className="h-11 w-11 rounded-xl bg-[#E9F3E9] text-[#4C9A5A] flex items-center justify-center shrink-0 border border-[#4C9A5A]/10">
+              <div className="h-12 w-12 rounded-2xl bg-[#E9F3E9] text-[#4C9A5A] flex items-center justify-center shrink-0 border border-[#4C9A5A]/10">
                 <svg
                   viewBox="0 0 24 24"
-                  className="w-5 h-5"
+                  className="w-6 h-6"
                   fill="none"
                 >
                   <path
