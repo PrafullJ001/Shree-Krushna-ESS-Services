@@ -1,6 +1,6 @@
 ﻿{
   "name": "EssMitra",
-  "short_name": "EssMitra",
+  "short_name": "Ess Mitra",
   "description": "Spraying service management for farmers",
   "start_url": "/",
   "display": "standalone",
@@ -17,18 +17,6 @@
     {
       "src": "/icons/icon-192.png",
       "sizes": "192x192",
-      "type": "image/png",
-      "purpose": "maskable"
-    },
-    {
-      "src": "/icons/icon-512.png",
-      "sizes": "512x512",
-      "type": "image/png",
-      "purpose": "any"
-    },
-    {
-      "src": "/icons/icon-512.png",
-      "sizes": "512x512",
       "type": "image/png",
       "purpose": "maskable"
     }
