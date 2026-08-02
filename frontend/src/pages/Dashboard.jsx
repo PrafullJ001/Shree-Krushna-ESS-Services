@@ -209,7 +209,7 @@ export default function Dashboard() {
       {/* Recent services — visible to everyone */}
       <div className={`px-5 ${isAdmin ? "mt-8" : "-mt-12 relative z-10"} max-w-5xl mx-auto`}>
         <div className="flex items-end justify-between mb-4 px-1">
-          <h2 className="text-lg font-bold text-[#8a928c] tracking-tight">Recent Services</h2>
+          <h2 className="text-lg font-bold text-[#878f87] tracking-tight">Recent Services</h2>
           {displayedRecentServices.length > 0 && (
             <span className="text-[11px] font-bold uppercase tracking-wide text-[#4C9A5A] bg-[#E9F3E9] rounded-lg px-2.5 py-1 shadow-sm border border-[#4C9A5A]/10">
               {displayedRecentServices.length} shown
@@ -217,13 +217,24 @@ export default function Dashboard() {
           )}
         </div>
 
-        {/* Date filter presets */}
-        <div className="flex items-center gap-1.5 mb-3 overflow-x-auto no-scrollbar -mx-1 px-1 pb-1">
+        {/* Date filter presets — staff gets a bigger, more modern treatment;
+            admin view is unchanged from before */}
+        <div
+          className={`flex items-center gap-1.5 mb-3 overflow-x-auto no-scrollbar -mx-1 px-1 pb-1 ${
+            !isAdmin ? "gap-2 mb-4" : ""
+          }`}
+        >
           <button
             onClick={handlePresetRecent}
-            className={`shrink-0 flex-1 min-w-[76px] px-2 py-2 rounded-xl text-[11px] leading-tight font-bold whitespace-nowrap transition-all ${
+            className={`shrink-0 flex-1 min-w-[76px] font-bold whitespace-nowrap transition-all ${
+              !isAdmin
+                ? "px-3 py-3 rounded-2xl text-[13px] shadow-sm"
+                : "px-2 py-2 rounded-xl text-[11px] leading-tight"
+            } ${
               activePreset === "Recent"
                 ? "bg-[#2B5439] text-white shadow-sm"
+                : !isAdmin
+                ? "bg-white text-[#1F2A22]/70 border border-black/[0.08]"
                 : "bg-white text-[#1F2A22]/60 border border-black/[0.06]"
             }`}
           >
@@ -232,9 +243,15 @@ export default function Dashboard() {
 
           <button
             onClick={handlePresetToday}
-            className={`shrink-0 flex-1 min-w-[76px] px-2 py-2 rounded-xl text-[11px] leading-tight font-bold whitespace-nowrap transition-all ${
+            className={`shrink-0 flex-1 min-w-[76px] font-bold whitespace-nowrap transition-all ${
+              !isAdmin
+                ? "px-3 py-3 rounded-2xl text-[13px] shadow-sm"
+                : "px-2 py-2 rounded-xl text-[11px] leading-tight"
+            } ${
               activePreset === "Today"
                 ? "bg-[#2B5439] text-white shadow-sm"
+                : !isAdmin
+                ? "bg-white text-[#1F2A22]/70 border border-black/[0.08]"
                 : "bg-white text-[#1F2A22]/60 border border-black/[0.06]"
             }`}
           >
@@ -243,9 +260,15 @@ export default function Dashboard() {
 
           <button
             onClick={handlePresetWeek}
-            className={`shrink-0 flex-1 min-w-[76px] px-2 py-2 rounded-xl text-[11px] leading-tight font-bold whitespace-nowrap transition-all ${
+            className={`shrink-0 flex-1 min-w-[76px] font-bold whitespace-nowrap transition-all ${
+              !isAdmin
+                ? "px-3 py-3 rounded-2xl text-[13px] shadow-sm"
+                : "px-2 py-2 rounded-xl text-[11px] leading-tight"
+            } ${
               activePreset === "Last Week"
                 ? "bg-[#2B5439] text-white shadow-sm"
+                : !isAdmin
+                ? "bg-white text-[#1F2A22]/70 border border-black/[0.08]"
                 : "bg-white text-[#1F2A22]/60 border border-black/[0.06]"
             }`}
           >
@@ -254,9 +277,15 @@ export default function Dashboard() {
 
           <button
             onClick={handleToggleCustomRange}
-            className={`shrink-0 flex-1 min-w-[76px] px-2 py-2 rounded-xl text-[11px] leading-tight font-bold whitespace-nowrap transition-all ${
+            className={`shrink-0 flex-1 min-w-[76px] font-bold whitespace-nowrap transition-all ${
+              !isAdmin
+                ? "px-3 py-3 rounded-2xl text-[13px] shadow-sm"
+                : "px-2 py-2 rounded-xl text-[11px] leading-tight"
+            } ${
               activePreset === "Custom"
                 ? "bg-[#2B5439] text-white shadow-sm"
+                : !isAdmin
+                ? "bg-white text-[#1F2A22]/70 border border-black/[0.08]"
                 : "bg-white text-[#1F2A22]/60 border border-black/[0.06]"
             }`}
           >
