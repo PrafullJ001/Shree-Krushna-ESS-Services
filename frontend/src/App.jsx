@@ -15,7 +15,6 @@ import Profile from "./pages/Profile";
 import AddUser from "./pages/AddUser";
 import StaffPerformance from "./pages/StaffPerformance";
 import StatementPage from "./pages/StatementPage";
-import Expenses from "./pages/Expenses";
 
 function ProtectedLayout({ children }) {
   return (
@@ -58,18 +57,20 @@ export default function App() {
           <Route
             path="/farmers"
             element={
-              <ProtectedLayout>
+              <AdminProtectedLayout>
                 <Farmers />
-              </ProtectedLayout>
+              </AdminProtectedLayout>
             }
           />
 
+          {/* Staff attempting to reach a farmer profile directly gets redirected — 
+              they can only add services, never view a farmer's full profile/history */}
           <Route
             path="/farmers/:id"
             element={
-              <ProtectedLayout>
+              <AdminProtectedLayout>
                 <FarmerProfile />
-              </ProtectedLayout>
+              </AdminProtectedLayout>
             }
           />
 
@@ -125,16 +126,6 @@ export default function App() {
               <ProtectedLayout>
                 <OtpApprovals />
               </ProtectedLayout>
-            }
-          />
-
-          {/* Staff attempting to reach /expenses directly gets redirected */}
-          <Route
-            path="/expenses"
-            element={
-              <AdminProtectedLayout>
-                <Expenses />
-              </AdminProtectedLayout>
             }
           />
         </Routes>

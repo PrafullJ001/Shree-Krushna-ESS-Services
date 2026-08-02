@@ -1,4 +1,4 @@
-export default function StatsCard({ label, value, accent = "green", icon, variant = "soft" }) {
+﻿export default function StatsCard({ label, value, accent = "green", icon, variant = "soft" }) {
   const tones = {
     green: {
       solidBg: "linear-gradient(135deg, #4C9A5A 0%, #2B5439 100%)",
@@ -27,6 +27,13 @@ export default function StatsCard({ label, value, accent = "green", icon, varian
   };
   const t = tones[accent] || tones.green;
 
+  // Shrink the value's font size as it gets longer, so amounts up to
+  // ₹1,00,00,000 (and beyond) still fit inside the box on mobile instead
+  // of overflowing or wrapping awkwardly.
+  const valueLength = String(value).length;
+  const valueSizeClass =
+    valueLength > 10 ? "text-base" : valueLength > 7 ? "text-lg" : "text-2xl";
+
   if (variant === "solid") {
     return (
       <div
@@ -43,7 +50,7 @@ export default function StatsCard({ label, value, accent = "green", icon, varian
         <div className="relative flex items-start justify-between">
           <div>
             <p className="text-xs text-white/75 font-medium">{label}</p>
-            <p className="text-2xl font-bold text-white mt-1.5">{value}</p>
+            <p className={`${valueSizeClass} font-bold text-white mt-1.5 break-words leading-tight`}>{value}</p>
           </div>
           {icon && (
             <div className="h-9 w-9 rounded-xl bg-white/15 border border-white/20 flex items-center justify-center text-white shrink-0">
@@ -68,7 +75,7 @@ export default function StatsCard({ label, value, accent = "green", icon, varian
         )}
       </div>
       <p className="text-xs text-[#8A9A8E] font-medium">{label}</p>
-      <p className={`text-2xl font-bold mt-1 ${t.valueColor}`}>{value}</p>
+      <p className={`${valueSizeClass} font-bold mt-1 ${t.valueColor} break-words leading-tight`}>{value}</p>
     </div>
   );
 }

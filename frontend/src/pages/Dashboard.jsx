@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef } from "react";
+﻿import { useEffect, useState, useRef } from "react";
 import { getDashboardStats } from "../api/dashboardApi";
 import StatCard from "../components/dashboard/StatCard";
 import RecentServiceItem from "../components/dashboard/RecentServiceItem";
@@ -136,17 +136,6 @@ export default function Dashboard() {
     .filter((s) => s.farmer)
     .sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt));
 
-  // Check if any amount is 50 Lakhs (5,000,000) or more
-  const hasLargeAmounts =
-    Number(stats?.totalBillAmount || 0) >= 5000000 ||
-    Number(stats?.totalAmountReceived || 0) >= 5000000 ||
-    Number(stats?.totalPendingAmount || 0) >= 5000000;
-
-  // Dynamically adjust grid layout based on amount sizes
-  const gridClass = hasLargeAmounts
-    ? "grid-cols-1 sm:grid-cols-2 md:grid-cols-3"
-    : "grid-cols-2 md:grid-cols-3";
-
   // Helper to format currency in Indian numbering system (e.g., 3,33,567)
   const formatCurrency = (amount) => {
     return Number(amount || 0).toLocaleString("en-IN");
@@ -202,8 +191,7 @@ export default function Dashboard() {
       {/* Stat grid — money totals shown to admin only */}
       {isAdmin && (
         <div className="px-5 -mt-12 relative z-10 max-w-5xl mx-auto">
-          {/* Increased gap slightly to 'gap-5' to give the boxes a little more room */}
-          <div className={`grid ${gridClass} gap-5`}>
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
             <StatCard label="Total Farmers" value={stats.totalFarmers} accent="blue" />
             <StatCard
               label="Total Acres"

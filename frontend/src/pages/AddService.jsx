@@ -1733,17 +1733,49 @@ export default function AddService() {
               )}
             />
 
-            <button
-              onClick={() =>
-                navigate(
-                  `/farmers/${farmer._id}`
-                )
-              }
-              className="w-full text-sm text-[#8A968C] font-medium mt-1 py-2"
-            >
-              Skip, go to
-              farmer profile →
-            </button>
+           {isAdmin ? (
+  <button
+    onClick={() =>
+      navigate(
+        `/farmers/${farmer._id}`
+      )
+    }
+    className="w-full text-sm text-[#8A968C] font-medium mt-1 py-2"
+  >
+    Skip, go to
+    farmer profile →
+  </button>
+) : (
+  <button
+    onClick={() => {
+      setSavedService(null);
+      setFarmer(null);
+      setMode("search");
+      setVillage("");
+      setCropName("");
+      setCropOther("");
+      setServiceType("");
+      setServiceTypeOther("");
+      setPlotR("");
+      setAcres("");
+      setHasBillNo(true);
+      setBillNo("");
+      setPlotName("");
+      setTotalBill("");
+      setPaymentMode("Cash");
+      setNotes("");
+      setBillImageFile(null);
+      setBillPaid(false);
+      setAmountPaid("");
+      setApplyDiscount(false);
+      setDiscountAmount("");
+      setDiscountReason("");
+    }}
+    className="w-full bg-[#4C9A5A] text-white rounded-2xl py-3 font-bold text-sm mt-1"
+  >
+    Add Another Service
+  </button>
+)}
           </div>
         )}
       </div>
