@@ -41,6 +41,12 @@ exports.getDashboardStats = async (req, res) => {
       Farmer.countDocuments(),
 
       ServiceRecord.aggregate([
+        // FIX: this stage was missing entirely, so the totals below
+        // always summed the whole collection regardless of the active
+        // date range / search filter, while recentServicesQuery (below)
+        // correctly respected it — causing the stat cards to disagree
+        // with the filtered list underneath them.
+        { $match: serviceRecordFilter },
         {
           $group: {
             _id: null,
