@@ -45,6 +45,10 @@ const PRESETS = [
 // computed from the FULL set of expenses returned by the backend.
 const RECENT_ENTRIES_DISPLAY_LIMIT = 15;
 
+// How many entries to show by default inside the staff / category detail
+// panels — display-only, PDF generation still uses the full filtered set.
+const DETAIL_ENTRIES_DISPLAY_LIMIT = 5;
+
 const formatCurrency = (amount) => `₹${Number(amount || 0).toLocaleString("en-IN")}`;
 
 // jsPDF's default font has no ₹ glyph — it renders as a broken character.
@@ -84,11 +88,22 @@ export default function Expenses() {
   const [staffSearch, setStaffSearch] = useState("");
   const [viewingStaff, setViewingStaff] = useState(null);
 
+  // Category detail panel (ESS Machine / Tractor / Pickup / Diesel) — same
+  // pattern as the staff detail panel: optional PDF date filter + download.
+  const [viewingCategory, setViewingCategory] = useState(null);
+
   // Optional PDF-only date filter — independent of the page's main date
   // filter, applied only when generating a staff member's PDF report.
   const [pdfFrom, setPdfFrom] = useState("");
   const [pdfTo, setPdfTo] = useState("");
   const [showPdfFilter, setShowPdfFilter] = useState(false);
+
+  // Separate optional date filter for the "All Expenses" PDF export below
+  // (kept independent of pdfFrom/pdfTo so it doesn't interfere with the
+  // staff/category panels' own filters).
+  const [allPdfFrom, setAllPdfFrom] = useState("");
+  const [allPdfTo, setAllPdfTo] = useState("");
+  const [showAllPdfFilter, setShowAllPdfFilter] = useState(false);
 
   // ── EDIT / DELETE — new state ──────────────────────────────────────
   // The expense currently being edited (null = edit modal closed).
@@ -345,6 +360,13 @@ export default function Expenses() {
     );
   }, [expenses, viewingStaff]);
 
+  // Same idea as viewingStaffExpenses, but scoped to whichever category
+  // card (ESS Machine / Tractor / Pickup / Diesel) was clicked.
+  const viewingCategoryExpenses = useMemo(() => {
+    if (!viewingCategory) return [];
+    return expenses.filter((e) => e.category === viewingCategory.value);
+  }, [expenses, viewingCategory]);
+
   // Applies the optional PDF date filter on top of viewingStaffExpenses
   // (which is already scoped to the page's main date filter). Empty
   // from/to means "no extra restriction" — i.e. fully optional.
@@ -357,6 +379,31 @@ export default function Expenses() {
       return true;
     });
   }, [viewingStaffExpenses, pdfFrom, pdfTo]);
+
+  // Same optional date filter, applied to the category panel instead.
+  // Reuses pdfFrom/pdfTo since only one of the two panels is ever open
+  // at a time (resetPdfFilter runs whenever either panel opens/closes).
+  const categoryPdfFilteredExpenses = useMemo(() => {
+    if (!pdfFrom && !pdfTo) return viewingCategoryExpenses;
+    return viewingCategoryExpenses.filter((e) => {
+      const d = new Date(e.date);
+      if (pdfFrom && d < new Date(pdfFrom)) return false;
+      if (pdfTo && d > new Date(pdfTo + "T23:59:59")) return false;
+      return true;
+    });
+  }, [viewingCategoryExpenses, pdfFrom, pdfTo]);
+
+  // Display-only caps — the on-screen entry lists in both detail panels
+  // show only the most recent 5; PDF generation still uses the full
+  // filtered set above, untouched by this cap.
+  const staffEntriesToShow = useMemo(
+    () => viewingStaffExpenses.slice(0, DETAIL_ENTRIES_DISPLAY_LIMIT),
+    [viewingStaffExpenses]
+  );
+  const categoryEntriesToShow = useMemo(
+    () => viewingCategoryExpenses.slice(0, DETAIL_ENTRIES_DISPLAY_LIMIT),
+    [viewingCategoryExpenses]
+  );
 
   const resetPdfFilter = () => {
     setPdfFrom("");
@@ -416,6 +463,80 @@ export default function Expenses() {
         : "all";
 
     doc.save(`${safeName}_${fileSuffix}.pdf`);
+  };
+
+  // "All Expenses" export — every category combined, most recent first,
+  // with its own optional date filter, independent of the page's main
+  // date filter and of the staff/category panels' filters.
+  const allPdfFilteredExpenses = useMemo(() => {
+    if (!allPdfFrom && !allPdfTo) return expenses;
+    return expenses.filter((e) => {
+      const d = new Date(e.date);
+      if (allPdfFrom && d < new Date(allPdfFrom)) return false;
+      if (allPdfTo && d > new Date(allPdfTo + "T23:59:59")) return false;
+      return true;
+    });
+  }, [expenses, allPdfFrom, allPdfTo]);
+
+  const resetAllPdfFilter = () => {
+    setAllPdfFrom("");
+    setAllPdfTo("");
+  };
+
+  const handleGenerateAllPdf = () => {
+    const doc = new jsPDF();
+    const generatedOn = new Date().toLocaleDateString("en-IN");
+
+    const rangeLabel =
+      allPdfFrom && allPdfTo
+        ? `Period: ${new Date(allPdfFrom).toLocaleDateString("en-IN")} to ${new Date(allPdfTo).toLocaleDateString("en-IN")}`
+        : allPdfFrom
+        ? `Period: From ${new Date(allPdfFrom).toLocaleDateString("en-IN")}`
+        : allPdfTo
+        ? `Period: Up to ${new Date(allPdfTo).toLocaleDateString("en-IN")}`
+        : "Period: All Time (within current page filter)";
+
+    doc.setFontSize(16);
+    doc.text("All Expenses Report", 14, 18);
+    doc.setFontSize(10);
+    doc.setTextColor(100);
+    doc.text(`Generated: ${generatedOn}`, 14, 26);
+    doc.text(rangeLabel, 14, 31);
+
+    // Descending order — most recent expense first.
+    const sortedEntries = [...allPdfFilteredExpenses].sort(
+      (a, b) => new Date(b.date) - new Date(a.date)
+    );
+
+    autoTable(doc, {
+      startY: 38,
+      head: [["Date", "Category", "Note", "Amount"]],
+      body: sortedEntries.map((e) => [
+        new Date(e.date).toLocaleDateString("en-IN"),
+        [...CATEGORIES, STAFF_CATEGORY].find((c) => c.value === e.category)?.label || e.category,
+        e.note || "-",
+        formatCurrencyForPdf(e.amount),
+      ]),
+      foot: [[
+        "",
+        "",
+        "Total",
+        formatCurrencyForPdf(sortedEntries.reduce((sum, e) => sum + Number(e.amount || 0), 0)),
+      ]],
+      headStyles: { fillColor: [31, 61, 43] },
+      footStyles: { fillColor: [246, 242, 233], textColor: [31, 42, 34], fontStyle: "bold" },
+    });
+
+    const fileSuffix =
+      allPdfFrom && allPdfTo
+        ? `${allPdfFrom}_to_${allPdfTo}`
+        : allPdfFrom
+        ? `from_${allPdfFrom}`
+        : allPdfTo
+        ? `upto_${allPdfTo}`
+        : "all";
+
+    doc.save(`All_Expenses_${fileSuffix}.pdf`);
   };
 
   if (!isAdmin) return null;
@@ -658,10 +779,107 @@ export default function Expenses() {
               </div>
             </div>
 
-            {/* Category cards (no Staff here — Staff now gets its own full-width row below) */}
+            {/* ALL EXPENSES PDF — every category combined, most recent
+                first, with a grand total. Own optional date filter, same
+                pattern as the staff/category panels. */}
+            <div className="bg-white rounded-2xl shadow-sm border border-black/[0.04] p-4">
+              <p className="text-sm font-bold text-[#1F2A22] mb-0.5">All Expenses Report</p>
+              <p className="text-[11px] text-[#1F2A22]/50 mb-3">Every category, most recent first, with total</p>
+
+              <div className="bg-[#F6F2E9]/60 rounded-xl mb-3 overflow-hidden">
+                <button
+                  type="button"
+                  onClick={() => setShowAllPdfFilter((prev) => !prev)}
+                  className="w-full flex items-center justify-between px-3.5 py-2.5"
+                >
+                  <span className="text-[12px] font-bold text-[#1F2A22]">
+                    {allPdfFrom || allPdfTo ? (
+                      <>
+                        PDF Range:{" "}
+                        <span className="text-[#4C9A5A]">
+                          {allPdfFrom ? new Date(allPdfFrom).toLocaleDateString("en-IN") : "…"} →{" "}
+                          {allPdfTo ? new Date(allPdfTo).toLocaleDateString("en-IN") : "…"}
+                        </span>
+                      </>
+                    ) : (
+                      "Filter PDF by Date (optional)"
+                    )}
+                  </span>
+                  <svg
+                    viewBox="0 0 24 24"
+                    className={`h-3.5 w-3.5 text-[#1F2A22]/40 transition-transform ${showAllPdfFilter ? "rotate-180" : ""}`}
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                  >
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+                  </svg>
+                </button>
+
+                {showAllPdfFilter && (
+                  <div className="px-3.5 pb-3.5 space-y-2.5">
+                    <div className="grid grid-cols-2 gap-2.5">
+                      <div>
+                        <label className="block text-[10px] font-bold text-[#1F2A22]/50 uppercase tracking-wide mb-1">From</label>
+                        <input
+                          type="date"
+                          value={allPdfFrom}
+                          max={allPdfTo || getTodayLocal()}
+                          onChange={(e) => setAllPdfFrom(e.target.value)}
+                          className="w-full bg-white border border-black/[0.06] rounded-lg px-2.5 py-2 text-[13px]"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-[10px] font-bold text-[#1F2A22]/50 uppercase tracking-wide mb-1">To</label>
+                        <input
+                          type="date"
+                          value={allPdfTo}
+                          min={allPdfFrom}
+                          max={getTodayLocal()}
+                          onChange={(e) => setAllPdfTo(e.target.value)}
+                          className="w-full bg-white border border-black/[0.06] rounded-lg px-2.5 py-2 text-[13px]"
+                        />
+                      </div>
+                    </div>
+                    {(allPdfFrom || allPdfTo) && (
+                      <button
+                        type="button"
+                        onClick={resetAllPdfFilter}
+                        className="text-[11px] font-bold text-[#C24949] uppercase tracking-wide"
+                      >
+                        Clear PDF filter
+                      </button>
+                    )}
+                  </div>
+                )}
+              </div>
+
+              <button
+                onClick={handleGenerateAllPdf}
+                disabled={allPdfFilteredExpenses.length === 0}
+                className="w-full bg-[#2B5439] text-white rounded-xl py-2.5 text-sm font-bold flex items-center justify-center gap-2 disabled:opacity-50"
+              >
+                <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 10v6m0 0l-3-3m3 3l3-3M5 21h14a2 2 0 002-2V7l-5-5H5a2 2 0 00-2 2v15a2 2 0 002 2z" />
+                </svg>
+                Download PDF ({allPdfFilteredExpenses.length} entr{allPdfFilteredExpenses.length === 1 ? "y" : "ies"})
+              </button>
+            </div>
+
+            {/* Category cards (no Staff here — Staff now gets its own full-width row below).
+                Tapping a card opens its detail panel, same as tapping Staff. */}
             <div className="grid grid-cols-2 gap-3">
               {CATEGORIES.map((c) => (
-                <div key={c.value} className="text-left bg-white rounded-2xl shadow-sm border border-black/[0.04] p-4">
+                <button
+                  key={c.value}
+                  type="button"
+                  onClick={() => {
+                    setViewingCategory(c);
+                    resetPdfFilter();
+                    setShowPdfFilter(false);
+                  }}
+                  className="text-left bg-white rounded-2xl shadow-sm border border-black/[0.04] p-4 active:scale-[0.98] transition-all"
+                >
                   <div className="flex items-center gap-2 mb-2">
                     <span
                       className="h-8 w-8 rounded-xl flex items-center justify-center text-[11px] font-bold text-white shrink-0"
@@ -671,8 +889,13 @@ export default function Expenses() {
                     </span>
                     <p className="text-[11px] font-bold text-[#1F2A22]/50 uppercase tracking-wide">{c.label}</p>
                   </div>
-                  <p className="text-lg font-black text-[#1F2A22]">{formatCurrency(totals[c.value])}</p>
-                </div>
+                  <div className="flex items-center justify-between">
+                    <p className="text-lg font-black text-[#1F2A22]">{formatCurrency(totals[c.value])}</p>
+                    <svg viewBox="0 0 24 24" className="h-4 w-4 text-[#1F2A22]/30 shrink-0" fill="none" stroke="currentColor" strokeWidth="2">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+                    </svg>
+                  </div>
+                </button>
               ))}
             </div>
 
@@ -959,8 +1182,17 @@ export default function Expenses() {
                   Download PDF ({pdfFilteredExpenses.length} entr{pdfFilteredExpenses.length === 1 ? "y" : "ies"})
                 </button>
 
+                <div className="flex items-center justify-between px-0.5 mb-2">
+                  <p className="text-[11px] font-bold text-[#1F2A22]/50 uppercase tracking-wide">Recent Entries</p>
+                  {viewingStaffExpenses.length > DETAIL_ENTRIES_DISPLAY_LIMIT && (
+                    <span className="text-[10px] font-semibold text-[#1F2A22]/40">
+                      Showing {staffEntriesToShow.length} of {viewingStaffExpenses.length}
+                    </span>
+                  )}
+                </div>
+
                 <div className="space-y-2">
-                  {viewingStaffExpenses.map((e) => (
+                  {staffEntriesToShow.map((e) => (
                     <div key={e._id} className="flex items-center justify-between bg-[#F6F2E9]/50 rounded-xl px-3.5 py-2.5">
                       <div className="min-w-0">
                         <p className="text-[13px] font-semibold text-[#1F2A22] truncate">{e.note}</p>
@@ -996,6 +1228,177 @@ export default function Expenses() {
                 </div>
               </div>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* CATEGORY DETAIL PANEL (ESS Machine / Tractor / Pickup / Diesel) —
+          same pattern as the Staff detail panel: optional PDF date-range
+          filter, a Download PDF button (defaults to all entries in the
+          current page filter), and the 5 most recent entries with
+          edit/delete. */}
+      {viewingCategory && (
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-[60] p-4">
+          <div className="bg-white rounded-[1.5rem] shadow-lg w-full max-w-md max-h-[75vh] mb-20 flex flex-col overflow-hidden">
+            <div className="p-5 overflow-y-auto flex-1 min-h-0">
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center gap-3 min-w-0">
+                  <span
+                    className="h-11 w-11 rounded-full text-white flex items-center justify-center text-[14px] font-bold shrink-0"
+                    style={{ backgroundColor: viewingCategory.color }}
+                  >
+                    {viewingCategory.label.charAt(0)}
+                  </span>
+                  <div className="min-w-0">
+                    <h2 className="font-bold text-lg text-[#1F2A22] truncate">{viewingCategory.label}</h2>
+                    <p className="text-[12px] text-[#1F2A22]/50">
+                      {formatCurrency(totals[viewingCategory.value])} total
+                    </p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => {
+                    setViewingCategory(null);
+                    resetPdfFilter();
+                    setShowPdfFilter(false);
+                  }}
+                  className="text-[#1F2A22]/40 shrink-0"
+                >
+                  <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+
+              {/* Optional PDF date filter — same UI/behavior as the staff panel */}
+              <div className="bg-[#F6F2E9]/60 rounded-xl mb-4 overflow-hidden">
+                <button
+                  type="button"
+                  onClick={() => setShowPdfFilter((prev) => !prev)}
+                  className="w-full flex items-center justify-between px-3.5 py-2.5"
+                >
+                  <span className="text-[12px] font-bold text-[#1F2A22]">
+                    {pdfFrom || pdfTo ? (
+                      <>
+                        PDF Range:{" "}
+                        <span className="text-[#4C9A5A]">
+                          {pdfFrom ? new Date(pdfFrom).toLocaleDateString("en-IN") : "…"} →{" "}
+                          {pdfTo ? new Date(pdfTo).toLocaleDateString("en-IN") : "…"}
+                        </span>
+                      </>
+                    ) : (
+                      "Filter PDF by Date (optional)"
+                    )}
+                  </span>
+                  <svg
+                    viewBox="0 0 24 24"
+                    className={`h-3.5 w-3.5 text-[#1F2A22]/40 transition-transform ${showPdfFilter ? "rotate-180" : ""}`}
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                  >
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+                  </svg>
+                </button>
+
+                {showPdfFilter && (
+                  <div className="px-3.5 pb-3.5 space-y-2.5">
+                    <div className="grid grid-cols-2 gap-2.5">
+                      <div>
+                        <label className="block text-[10px] font-bold text-[#1F2A22]/50 uppercase tracking-wide mb-1">From</label>
+                        <input
+                          type="date"
+                          value={pdfFrom}
+                          max={pdfTo || getTodayLocal()}
+                          onChange={(e) => setPdfFrom(e.target.value)}
+                          className="w-full bg-white border border-black/[0.06] rounded-lg px-2.5 py-2 text-[13px]"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-[10px] font-bold text-[#1F2A22]/50 uppercase tracking-wide mb-1">To</label>
+                        <input
+                          type="date"
+                          value={pdfTo}
+                          min={pdfFrom}
+                          max={getTodayLocal()}
+                          onChange={(e) => setPdfTo(e.target.value)}
+                          className="w-full bg-white border border-black/[0.06] rounded-lg px-2.5 py-2 text-[13px]"
+                        />
+                      </div>
+                    </div>
+                    {(pdfFrom || pdfTo) && (
+                      <button
+                        type="button"
+                        onClick={resetPdfFilter}
+                        className="text-[11px] font-bold text-[#C24949] uppercase tracking-wide"
+                      >
+                        Clear PDF filter
+                      </button>
+                    )}
+                  </div>
+                )}
+              </div>
+
+              <button
+                onClick={() => handleGeneratePdf(viewingCategory.label, categoryPdfFilteredExpenses)}
+                disabled={categoryPdfFilteredExpenses.length === 0}
+                className="w-full mb-4 bg-[#2B5439] text-white rounded-xl py-2.5 text-sm font-bold flex items-center justify-center gap-2 disabled:opacity-50"
+              >
+                <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 10v6m0 0l-3-3m3 3l3-3M5 21h14a2 2 0 002-2V7l-5-5H5a2 2 0 00-2 2v15a2 2 0 002 2z" />
+                </svg>
+                Download PDF ({categoryPdfFilteredExpenses.length} entr{categoryPdfFilteredExpenses.length === 1 ? "y" : "ies"})
+              </button>
+
+              <div className="flex items-center justify-between px-0.5 mb-2">
+                <p className="text-[11px] font-bold text-[#1F2A22]/50 uppercase tracking-wide">Recent Entries</p>
+                {viewingCategoryExpenses.length > DETAIL_ENTRIES_DISPLAY_LIMIT && (
+                  <span className="text-[10px] font-semibold text-[#1F2A22]/40">
+                    Showing {categoryEntriesToShow.length} of {viewingCategoryExpenses.length}
+                  </span>
+                )}
+              </div>
+
+              {categoryEntriesToShow.length === 0 ? (
+                <EmptyState icon="🧾" title="No expenses yet" subtitle="Entries in this category will show up here" />
+              ) : (
+                <div className="space-y-2">
+                  {categoryEntriesToShow.map((e) => (
+                    <div key={e._id} className="flex items-center justify-between bg-[#F6F2E9]/50 rounded-xl px-3.5 py-2.5">
+                      <div className="min-w-0">
+                        <p className="text-[13px] font-semibold text-[#1F2A22] truncate">{e.note}</p>
+                        <p className="text-[11px] text-[#1F2A22]/50">
+                          {new Date(e.date).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-1.5 shrink-0 ml-2">
+                        <p className="text-sm font-black text-[#1F2A22]">{formatCurrency(e.amount)}</p>
+                        <button
+                          type="button"
+                          onClick={() => openEditModal(e)}
+                          aria-label="Edit expense"
+                          className="h-7 w-7 flex items-center justify-center rounded-lg text-[#1F2A22]/40 hover:text-[#2B5439] hover:bg-white transition-colors"
+                        >
+                          <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2">
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M11 4H6a2 2 0 00-2 2v12a2 2 0 002 2h12a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                          </svg>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => requestDelete(e)}
+                          aria-label="Delete expense"
+                          className="h-7 w-7 flex items-center justify-center rounded-lg text-[#1F2A22]/40 hover:text-[#C24949] hover:bg-white transition-colors"
+                        >
+                          <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2">
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6M9 7V4a1 1 0 011-1h4a1 1 0 011 1v3M4 7h16" />
+                          </svg>
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
         </div>
       )}

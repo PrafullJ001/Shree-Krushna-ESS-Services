@@ -34,6 +34,7 @@ export default function FarmerProfile() {
   const [acresTo, setAcresTo] = useState("");
   const [appliedAcresFrom, setAppliedAcresFrom] = useState("");
   const [appliedAcresTo, setAppliedAcresTo] = useState("");
+  const [applyingAcresFilter, setApplyingAcresFilter] = useState(false);
   const isAcresFilterActive = Boolean(appliedAcresFrom || appliedAcresTo);
 
   const loadData = async () => {
@@ -99,8 +100,14 @@ export default function FarmerProfile() {
   };
 
   const handleApplyAcresFilter = () => {
-    setAppliedAcresFrom(acresFrom);
-    setAppliedAcresTo(acresTo);
+    setApplyingAcresFilter(true);
+    // Brief delay purely so the user gets visible feedback that the filter
+    // was actually applied — the calculation itself is instant client-side.
+    setTimeout(() => {
+      setAppliedAcresFrom(acresFrom);
+      setAppliedAcresTo(acresTo);
+      setApplyingAcresFilter(false);
+    }, 350);
   };
 
   const handleClearAcresFilter = () => {
@@ -290,9 +297,6 @@ export default function FarmerProfile() {
             <div className="flex items-center justify-between mb-3">
               <p className="text-[10px] uppercase font-bold text-[#1F2A22]/40 tracking-widest">
                 Acres Summary
-                {isAcresFilterActive && (
-                  <span className="ml-2 normal-case font-semibold text-[#4C9A5A] tracking-normal">(filtered)</span>
-                )}
               </p>
               <button
                 type="button"
@@ -306,6 +310,43 @@ export default function FarmerProfile() {
                 Filter
               </button>
             </div>
+
+            {isAcresFilterActive && (
+              <div className="flex items-center gap-2 mb-3 animate-in fade-in slide-in-from-top-1 duration-200">
+                <div className="flex-1 flex items-center gap-2 bg-gradient-to-r from-[#E9F3E9] to-[#E9F3E9]/60 border border-[#4C9A5A]/20 rounded-xl px-3 py-2 min-w-0">
+                  <span className="h-6 w-6 shrink-0 rounded-lg bg-[#4C9A5A] text-white flex items-center justify-center">
+                    <svg viewBox="0 0 24 24" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth="2.2">
+                      <rect x="3" y="4" width="18" height="18" rx="2" strokeLinecap="round" strokeLinejoin="round" />
+                      <path d="M16 2v4M8 2v4M3 10h18" strokeLinecap="round" strokeLinejoin="round" />
+                    </svg>
+                  </span>
+                  <div className="min-w-0">
+                    <p className="text-[9px] font-bold text-[#4C9A5A]/70 uppercase tracking-wide leading-none mb-0.5">
+                      Filter Applied
+                    </p>
+                    <p className="text-[12px] font-bold text-[#2B5439] truncate leading-tight">
+                      {appliedAcresFrom
+                        ? new Date(appliedAcresFrom).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })
+                        : "Start"}
+                      {" – "}
+                      {appliedAcresTo
+                        ? new Date(appliedAcresTo).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })
+                        : "Today"}
+                    </p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={handleClearAcresFilter}
+                  aria-label="Clear filter"
+                  className="h-9 w-9 shrink-0 flex items-center justify-center rounded-xl bg-white border border-[#4C9A5A]/20 text-[#4C9A5A] hover:bg-[#FCEDED] hover:text-[#C24949] hover:border-[#F3C6C6] active:scale-95 transition-all"
+                >
+                  <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2.2">
+                    <path d="M18 6L6 18M6 6l12 12" strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
+                </button>
+              </div>
+            )}
 
             {showAcresFilter && (
               <div className="bg-[#F6F2E9]/70 rounded-2xl p-3.5 mb-3 space-y-3">
@@ -335,23 +376,37 @@ export default function FarmerProfile() {
                   <button
                     type="button"
                     onClick={handleClearAcresFilter}
-                    className="flex-1 bg-white border border-black/[0.08] text-[#1F2A22]/60 rounded-lg py-2 text-xs font-bold"
+                    disabled={applyingAcresFilter}
+                    className="flex-1 bg-white border border-black/[0.08] text-[#1F2A22]/60 rounded-lg py-2 text-xs font-bold disabled:opacity-50"
                   >
                     Show All
                   </button>
                   <button
                     type="button"
                     onClick={handleApplyAcresFilter}
-                    disabled={!acresFrom && !acresTo}
-                    className="flex-[1.5] bg-[#4C9A5A] text-white rounded-lg py-2 text-xs font-bold disabled:opacity-50"
+                    disabled={(!acresFrom && !acresTo) || applyingAcresFilter}
+                    className="flex-[1.5] bg-[#4C9A5A] text-white rounded-lg py-2 text-xs font-bold disabled:opacity-50 flex items-center justify-center gap-1.5"
                   >
-                    Apply
+                    {applyingAcresFilter ? (
+                      <>
+                        <svg viewBox="0 0 24 24" className="h-3.5 w-3.5 animate-spin" fill="none">
+                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3.5" />
+                          <path className="opacity-90" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                        </svg>
+                        Applying...
+                      </>
+                    ) : (
+                      "Apply"
+                    )}
                   </button>
                 </div>
               </div>
             )}
 
-            <div className="grid grid-cols-2 gap-2">
+            <div
+              key={`${appliedAcresFrom}-${appliedAcresTo}`}
+              className="grid grid-cols-2 gap-2 animate-in fade-in duration-300"
+            >
               <div className="bg-[#F6F2E9]/70 rounded-xl p-3 border border-black/[0.04]">
                 <p className="text-[9px] uppercase font-bold text-[#1F2A22]/45 tracking-wide mb-1">Total Acres</p>
                 <p className="text-sm font-black text-[#1F2A22] break-words">{totalAcres.toFixed(2)}</p>
