@@ -15,6 +15,7 @@ import Profile from "./pages/Profile";
 import AddUser from "./pages/AddUser";
 import StaffPerformance from "./pages/StaffPerformance";
 import StatementPage from "./pages/StatementPage";
+import Expenses from "./pages/Expenses";
 
 function ProtectedLayout({ children }) {
   return (
@@ -89,6 +90,16 @@ export default function App() {
             element={
               <AdminProtectedLayout>
                 <Payments />
+              </AdminProtectedLayout>
+            }
+          />
+
+          {/* Expenses — admin only, matches Farmers/Payments pattern */}
+          <Route
+            path="/expenses"
+            element={
+              <AdminProtectedLayout>
+                <Expenses />
               </AdminProtectedLayout>
             }
           />

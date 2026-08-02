@@ -1,9 +1,16 @@
 ﻿import { useState, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../hooks/useAuth";
-import { addExpense, getExpenses, getExpenseStaffList } from "../api/expenseApi";
+import {
+  addExpense,
+  getExpenses,
+  getExpenseStaffList,
+  updateExpense,
+  deleteExpense,
+} from "../api/expenseApi";
 import Spinner from "../components/common/Spinner";
 import EmptyState from "../components/common/EmptyState";
+import MathCaptchaModal from "../components/common/MathCaptchaModal";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 
@@ -83,6 +90,24 @@ export default function Expenses() {
   const [pdfTo, setPdfTo] = useState("");
   const [showPdfFilter, setShowPdfFilter] = useState(false);
 
+  // ── EDIT / DELETE — new state ──────────────────────────────────────
+  // The expense currently being edited (null = edit modal closed).
+  const [editingExpense, setEditingExpense] = useState(null);
+  const [editCategory, setEditCategory] = useState(CATEGORIES[0].value);
+  const [editAmount, setEditAmount] = useState("");
+  const [editDate, setEditDate] = useState("");
+  const [editNote, setEditNote] = useState("");
+  const [editSelectedStaff, setEditSelectedStaff] = useState(null);
+  const [editSubmitting, setEditSubmitting] = useState(false);
+  const [editError, setEditError] = useState(null);
+
+  // The expense pending delete confirmation (goes through MathCaptchaModal,
+  // same pattern used elsewhere in the app).
+  const [deleteTarget, setDeleteTarget] = useState(null);
+  const [showDeleteCaptcha, setShowDeleteCaptcha] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState(null);
+
   // Admin-only guard
   useEffect(() => {
     if (user && !isAdmin) {
@@ -108,6 +133,18 @@ export default function Expenses() {
     }
   };
 
+  // Re-runs whichever date filter (preset or custom) is currently active —
+  // used after add/edit/delete so every mutation refreshes the same view
+  // the user is already looking at.
+  const reloadCurrentView = () => {
+    const preset = PRESETS.find((p) => p.label === activePreset);
+    if (preset) {
+      loadExpenses(preset.from, preset.to);
+    } else {
+      loadExpenses(customFrom, customTo);
+    }
+  };
+
   useEffect(() => {
     const preset = PRESETS.find((p) => p.label === "Recent");
     loadExpenses(preset.from, preset.to);
@@ -124,6 +161,17 @@ export default function Expenses() {
         .finally(() => setStaffLoading(false));
     }
   }, [category, staffList.length, staffLoading]);
+
+  // Same lazy-load, but triggered from the edit modal's category picker.
+  useEffect(() => {
+    if (editCategory === "Staff Expense" && staffList.length === 0 && !staffLoading) {
+      setStaffLoading(true);
+      getExpenseStaffList()
+        .then(({ data }) => setStaffList(data.staff || []))
+        .catch(() => setStaffList([]))
+        .finally(() => setStaffLoading(false));
+    }
+  }, [editCategory, staffList.length, staffLoading]);
 
   const handlePreset = (preset) => {
     setActivePreset(preset.label);
@@ -174,16 +222,105 @@ export default function Expenses() {
       });
 
       resetForm();
-      const preset = PRESETS.find((p) => p.label === activePreset);
-      if (preset) {
-        loadExpenses(preset.from, preset.to);
-      } else {
-        loadExpenses(customFrom, customTo);
-      }
+      reloadCurrentView();
     } catch (err) {
       setError(err.response?.data?.message || "Failed to add expense");
     } finally {
       setSubmitting(false);
+    }
+  };
+
+  // ── EDIT / DELETE — new handlers ───────────────────────────────────
+
+  const openEditModal = (exp) => {
+    setEditError(null);
+    setEditingExpense(exp);
+    setEditCategory(exp.category);
+    setEditAmount(String(exp.amount ?? ""));
+    // exp.date comes back from the API as an ISO string — trim to
+    // YYYY-MM-DD for the <input type="date">.
+    setEditDate(exp.date ? String(exp.date).slice(0, 10) : "");
+    setEditNote(exp.note || "");
+    setEditSelectedStaff(exp.staffMember || null);
+  };
+
+  const closeEditModal = () => {
+    setEditingExpense(null);
+    setEditError(null);
+  };
+
+  const handleEditSubmit = async (e) => {
+    e.preventDefault();
+    setEditError(null);
+
+    if (!editAmount || Number(editAmount) <= 0) {
+      return setEditError("Enter a valid amount");
+    }
+
+    if (!editDate) {
+      return setEditError("Date is required");
+    }
+
+    if (editCategory === "Staff Expense" && !editSelectedStaff) {
+      return setEditError("Select a staff member");
+    }
+
+    if (!editNote.trim()) {
+      return setEditError("Note is required");
+    }
+
+    setEditSubmitting(true);
+    try {
+      await updateExpense(editingExpense._id, {
+        category: editCategory,
+        amount: Number(editAmount),
+        date: editDate,
+        staffMember: editCategory === "Staff Expense" ? editSelectedStaff._id : null,
+        note: editNote.trim(),
+      });
+
+      closeEditModal();
+      reloadCurrentView();
+
+      // Keep the staff detail panel in sync if we edited an entry from there.
+      if (viewingStaff) {
+        setViewingStaff((prev) => (prev ? { ...prev } : prev));
+      }
+    } catch (err) {
+      setEditError(err.response?.data?.message || "Failed to update expense");
+    } finally {
+      setEditSubmitting(false);
+    }
+  };
+
+  // Delete goes through the same MathCaptchaModal confirmation pattern
+  // used elsewhere in the app before anything destructive happens.
+  const requestDelete = (exp) => {
+    setDeleteError(null);
+    setDeleteTarget(exp);
+    setShowDeleteCaptcha(true);
+  };
+
+  const closeDeleteCaptcha = () => {
+    setShowDeleteCaptcha(false);
+    setDeleteTarget(null);
+  };
+
+  const handleDeleteConfirmed = async () => {
+    if (!deleteTarget) return;
+    setDeleting(true);
+    setDeleteError(null);
+    try {
+      await deleteExpense(deleteTarget._id);
+      setShowDeleteCaptcha(false);
+      setDeleteTarget(null);
+      reloadCurrentView();
+    } catch (err) {
+      // MathCaptchaModal has no error prop, so surface API failures this way.
+      setDeleteError(err.response?.data?.message || "Failed to delete expense");
+      window.alert(err.response?.data?.message || "Failed to delete expense");
+    } finally {
+      setDeleting(false);
     }
   };
 
@@ -605,9 +742,31 @@ export default function Expenses() {
                             </p>
                           </div>
                         </div>
-                        <p className="text-sm font-black text-[#1F2A22] shrink-0 ml-2">
-                          {formatCurrency(exp.amount)}
-                        </p>
+                        <div className="flex items-center gap-1.5 shrink-0 ml-2">
+                          <p className="text-sm font-black text-[#1F2A22]">
+                            {formatCurrency(exp.amount)}
+                          </p>
+                          <button
+                            type="button"
+                            onClick={() => openEditModal(exp)}
+                            aria-label="Edit expense"
+                            className="h-7 w-7 flex items-center justify-center rounded-lg text-[#1F2A22]/40 hover:text-[#2B5439] hover:bg-[#F6F2E9] transition-colors"
+                          >
+                            <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2">
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M11 4H6a2 2 0 00-2 2v12a2 2 0 002 2h12a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                            </svg>
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => requestDelete(exp)}
+                            aria-label="Delete expense"
+                            className="h-7 w-7 flex items-center justify-center rounded-lg text-[#1F2A22]/40 hover:text-[#C24949] hover:bg-[#FCEDED] transition-colors"
+                          >
+                            <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2">
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6M9 7V4a1 1 0 011-1h4a1 1 0 011 1v3M4 7h16" />
+                            </svg>
+                          </button>
+                        </div>
                       </div>
                     );
                   })}
@@ -803,13 +962,35 @@ export default function Expenses() {
                 <div className="space-y-2">
                   {viewingStaffExpenses.map((e) => (
                     <div key={e._id} className="flex items-center justify-between bg-[#F6F2E9]/50 rounded-xl px-3.5 py-2.5">
-                      <div>
-                        <p className="text-[13px] font-semibold text-[#1F2A22]">{e.note}</p>
+                      <div className="min-w-0">
+                        <p className="text-[13px] font-semibold text-[#1F2A22] truncate">{e.note}</p>
                         <p className="text-[11px] text-[#1F2A22]/50">
                           {new Date(e.date).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}
                         </p>
                       </div>
-                      <p className="text-sm font-black text-[#1F2A22]">{formatCurrency(e.amount)}</p>
+                      <div className="flex items-center gap-1.5 shrink-0 ml-2">
+                        <p className="text-sm font-black text-[#1F2A22]">{formatCurrency(e.amount)}</p>
+                        <button
+                          type="button"
+                          onClick={() => openEditModal(e)}
+                          aria-label="Edit expense"
+                          className="h-7 w-7 flex items-center justify-center rounded-lg text-[#1F2A22]/40 hover:text-[#2B5439] hover:bg-white transition-colors"
+                        >
+                          <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2">
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M11 4H6a2 2 0 00-2 2v12a2 2 0 002 2h12a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                          </svg>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => requestDelete(e)}
+                          aria-label="Delete expense"
+                          className="h-7 w-7 flex items-center justify-center rounded-lg text-[#1F2A22]/40 hover:text-[#C24949] hover:bg-white transition-colors"
+                        >
+                          <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2">
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6M9 7V4a1 1 0 011-1h4a1 1 0 011 1v3M4 7h16" />
+                          </svg>
+                        </button>
+                      </div>
                     </div>
                   ))}
                 </div>
@@ -817,6 +998,175 @@ export default function Expenses() {
             )}
           </div>
         </div>
+      )}
+
+      {/* EDIT EXPENSE MODAL — reuses the same category/staff/amount/date/note
+          fields as the Add Expense form above. */}
+      {editingExpense && (
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-[70] p-4">
+          <div className="bg-white rounded-[1.5rem] shadow-lg w-full max-w-md max-h-[85vh] mb-16 flex flex-col overflow-hidden">
+            <div className="p-5 overflow-y-auto flex-1 min-h-0">
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="font-bold text-lg text-[#1F2A22]">Edit Expense</h2>
+                <button onClick={closeEditModal} className="text-[#1F2A22]/40">
+                  <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+
+              <form onSubmit={handleEditSubmit} className="space-y-4">
+                {/* Category chips */}
+                <div className="grid grid-cols-3 gap-2">
+                  {[...CATEGORIES, STAFF_CATEGORY].map((c) => (
+                    <button
+                      key={c.value}
+                      type="button"
+                      onClick={() => {
+                        setEditCategory(c.value);
+                        setEditSelectedStaff(null);
+                      }}
+                      className={`py-2.5 rounded-xl text-[12px] font-bold transition-all ${
+                        editCategory === c.value ? "text-white shadow-sm" : "bg-[#F6F2E9] text-[#5B6B5E]"
+                      }`}
+                      style={editCategory === c.value ? { backgroundColor: c.color } : {}}
+                    >
+                      {c.label}
+                    </button>
+                  ))}
+                </div>
+
+                {/* Staff picker — only for Staff Expense */}
+                {editCategory === "Staff Expense" && (
+                  <div className="bg-[#F6F2E9] rounded-xl p-3.5">
+                    <p className="text-xs font-semibold text-[#5B6B5E] uppercase tracking-wide mb-2.5">
+                      Select Staff
+                    </p>
+
+                    {staffLoading ? (
+                      <Spinner label="Loading staff..." />
+                    ) : staffList.length === 0 ? (
+                      <p className="text-[12px] text-[#8A968C] font-medium">No staff accounts found</p>
+                    ) : (
+                      <div className="flex flex-col gap-1.5">
+                        {staffList.map((s) => (
+                          <button
+                            key={s._id}
+                            type="button"
+                            onClick={() => setEditSelectedStaff(s)}
+                            className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-left transition-all ${
+                              editSelectedStaff?._id === s._id
+                                ? "bg-[#C24949] text-white"
+                                : "bg-white text-[#1F2A22] border border-black/[0.06]"
+                            }`}
+                          >
+                            <span
+                              className={`h-7 w-7 shrink-0 rounded-full flex items-center justify-center text-[11px] font-bold ${
+                                editSelectedStaff?._id === s._id
+                                  ? "bg-white/20 text-white"
+                                  : "bg-[#F6F2E9] text-[#1F3D2B]/60"
+                              }`}
+                            >
+                              {s.name?.charAt(0)?.toUpperCase() || "?"}
+                            </span>
+                            <span className="flex-1 min-w-0">
+                              <p className="text-[13px] font-semibold truncate">{s.name}</p>
+                              <p className={`text-[11px] ${editSelectedStaff?._id === s._id ? "text-white/70" : "text-[#8A968C]"}`}>
+                                {s.mobile}
+                              </p>
+                            </span>
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* Amount + Date */}
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs font-semibold text-[#5B6B5E] uppercase tracking-wide mb-1.5">
+                      Amount
+                    </label>
+                    <input
+                      type="number"
+                      inputMode="decimal"
+                      value={editAmount}
+                      onChange={(e) => setEditAmount(e.target.value)}
+                      placeholder="₹0"
+                      className="w-full bg-[#F6F2E9] border border-black/[0.06] rounded-xl px-3.5 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#4C9A5A]/30"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-semibold text-[#5B6B5E] uppercase tracking-wide mb-1.5">
+                      Date
+                    </label>
+                    <input
+                      type="date"
+                      value={editDate}
+                      onChange={(e) => setEditDate(e.target.value)}
+                      className="w-full bg-[#F6F2E9] border border-black/[0.06] rounded-xl px-3.5 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#4C9A5A]/30"
+                    />
+                  </div>
+                </div>
+
+                {/* Note */}
+                <div>
+                  <label className="block text-xs font-semibold text-[#5B6B5E] uppercase tracking-wide mb-1.5">
+                    Note *
+                  </label>
+                  <input
+                    type="text"
+                    value={editNote}
+                    onChange={(e) => setEditNote(e.target.value)}
+                    placeholder="e.g. Oil change, spare part"
+                    required
+                    className="w-full bg-[#F6F2E9] border border-black/[0.06] rounded-xl px-3.5 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#4C9A5A]/30"
+                  />
+                </div>
+
+                {editError && (
+                  <div className="bg-[#FCEDED] border border-[#F3C6C6] rounded-xl px-4 py-3">
+                    <p className="text-[#C24949] text-sm font-semibold">{editError}</p>
+                  </div>
+                )}
+
+                <div className="flex gap-2.5">
+                  <button
+                    type="button"
+                    onClick={closeEditModal}
+                    className="flex-1 bg-[#F6F2E9] text-[#1F2A22] rounded-2xl py-3 font-bold text-sm active:scale-[0.98] transition-all"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={editSubmitting}
+                    className="flex-1 bg-[#2B5439] text-white rounded-2xl py-3 font-bold text-sm shadow-sm disabled:opacity-50 active:scale-[0.98] transition-all"
+                  >
+                    {editSubmitting ? "Saving..." : "Save Changes"}
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* DELETE CONFIRMATION — same MathCaptchaModal pattern used elsewhere
+          in the app before a destructive action is carried out. Only
+          mounted while active, since the component has no isOpen prop of
+          its own. */}
+      {showDeleteCaptcha && deleteTarget && (
+        <MathCaptchaModal
+          title="Delete Expense"
+          message={`Solve to confirm deleting "${deleteTarget.note || deleteTarget.category}" (${formatCurrency(deleteTarget.amount)}). This can't be undone.`}
+          onConfirm={handleDeleteConfirmed}
+          onCancel={closeDeleteCaptcha}
+          loading={deleting}
+          confirmLabel="Confirm Delete"
+          loadingLabel="Deleting..."
+        />
       )}
     </div>
   );

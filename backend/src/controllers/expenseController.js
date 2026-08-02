@@ -150,3 +150,97 @@ exports.getStaffList = async (req, res) => {
     res.status(500).json({ message: err.message });
   }
 };
+
+// @desc  Update an existing expense entry
+// @route PUT /api/expenses/:id
+// @access Admin only
+exports.updateExpense = async (req, res) => {
+  try {
+    if (req.user.role !== 'admin') {
+      return res.status(403).json({ message: 'Only admins can edit expenses' });
+    }
+
+    const expense = await Expense.findById(req.params.id);
+
+    if (!expense) {
+      return res.status(404).json({ message: 'Expense not found' });
+    }
+
+    const { category, amount, date, staffMember, note } = req.body;
+
+    if (category !== undefined) {
+      if (!CATEGORIES.includes(category)) {
+        return res.status(400).json({ message: 'Invalid category' });
+      }
+      expense.category = category;
+    }
+
+    if (amount !== undefined) {
+      if (!amount || Number(amount) <= 0) {
+        return res.status(400).json({ message: 'Amount must be greater than 0' });
+      }
+      expense.amount = Number(amount);
+    }
+
+    if (date !== undefined) {
+      if (!date) {
+        return res.status(400).json({ message: 'Date is required' });
+      }
+      expense.date = date;
+    }
+
+    if (note !== undefined) {
+      if (!note.trim()) {
+        return res.status(400).json({ message: 'Note is required' });
+      }
+      expense.note = note.trim();
+    }
+
+    // Staff member — required if the (possibly just-updated) category is
+    // Staff Expense, cleared otherwise, same rule as addExpense.
+    const effectiveCategory = category !== undefined ? category : expense.category;
+
+    if (effectiveCategory === 'Staff Expense') {
+      const effectiveStaffMember = staffMember !== undefined ? staffMember : expense.staffMember;
+      if (!effectiveStaffMember) {
+        return res
+          .status(400)
+          .json({ message: 'Select a staff member for staff expenses' });
+      }
+      expense.staffMember = effectiveStaffMember;
+    } else {
+      expense.staffMember = null;
+    }
+
+    await expense.save();
+
+    const populated = await expense.populate('staffMember', 'name mobile role');
+
+    res.json({ expense: populated });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+};
+
+// @desc  Delete an expense entry
+// @route DELETE /api/expenses/:id
+// @access Admin only
+exports.deleteExpense = async (req, res) => {
+  try {
+    if (req.user.role !== 'admin') {
+      return res.status(403).json({ message: 'Only admins can delete expenses' });
+    }
+
+    const expense = await Expense.findById(req.params.id);
+
+    if (!expense) {
+      return res.status(404).json({ message: 'Expense not found' });
+    }
+
+    await expense.deleteOne();
+
+    res.json({ message: 'Expense deleted' });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+};

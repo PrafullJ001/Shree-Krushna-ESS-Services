@@ -7,3 +7,7 @@ export const getExpenses = (params = {}) =>
 
 export const getExpenseStaffList = () =>
   axiosInstance.get("/expenses/staff-list");
+
+export const updateExpense = (id, data) => axiosInstance.put(`/expenses/${id}`, data);
+
+export const deleteExpense = (id) => axiosInstance.delete(`/expenses/${id}`);
