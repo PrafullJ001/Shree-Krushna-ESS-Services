@@ -20,7 +20,7 @@ export const buildServiceMessage = (farmer, service) => {
 
   return `नमस्कार! प्रिय शेतकरी, ${farmer.fullName} 🙏
 
-आपली फवारणी सेवा यशस्वीरित्या पूर्ण झाली आहे. ✅
+आपली फवारणी यशस्वीरित्या पूर्ण झाली आहे. ✅
 
 पीक: ${service.cropName || "-"}
 क्षेत्र (एकर): ${service.acres || "-"}
@@ -30,8 +30,9 @@ export const buildServiceMessage = (farmer, service) => {
 शिल्लक रक्कम: ${formatCurrency(pending)}
 स्थिती: ${statusLine(paid, pending)}
 
-आधुनिक तंत्रज्ञान आधुनिक शेती.
 धन्यवाद!
+आधुनिक तंत्रज्ञान आधुनिक शेती.
+
 ${businessFooter()}`;
 };
 
@@ -49,8 +50,9 @@ ${discountAmount > 0 ? `सवलत: ${formatCurrency(discountAmount)}\n` : ""}
 शिल्लक रक्कम: ${formatCurrency(pending)}
 स्थिती: ${statusLine(paid, pending)}
 
-आधुनिक तंत्रज्ञान आधुनिक शेती.
 धन्यवाद!
+आधुनिक तंत्रज्ञान आधुनिक शेती.
+
 ${businessFooter()}`;
 };
 
@@ -67,8 +69,9 @@ export const buildReminderMessage = (farmer, totals) => {
 
 ${totalPending > 0 ? "कृपया लवकरात लवकर शिल्लक रक्कम भरावी." : "आपले खाते पूर्णपणे भरले आहे ✅"}
 
-आधुनिक तंत्रज्ञान आधुनिक शेती.
 धन्यवाद!
+आधुनिक तंत्रज्ञान आधुनिक शेती.
+
 ${businessFooter()}`;
 };
 
@@ -85,8 +88,8 @@ export const buildBulkPaymentMessage = (farmer, paymentAmount, totals) => {
 शिल्लक रक्कम: ${formatCurrency(totalPending)}
 स्थिती: ${totalPending > 0 ? "अंशतः भरणा झाला आहे" : "पूर्ण भरणा झाला आहे ✅"}
 
-आधुनिक तंत्रज्ञान आधुनिक शेती.
 धन्यवाद!
+आधुनिक तंत्रज्ञान आधुनिक शेती.
 ${businessFooter()}`;
 };
 
@@ -101,7 +104,8 @@ export const buildSettleAllMessage = (farmer, totals) => {
 भरलेली रक्कम: ${formatCurrency(totalCollected)}
 शिल्लक रक्कम: ${formatCurrency(0)}
 
-आधुनिक तंत्रज्ञान आधुनिक शेती.
 धन्यवाद!
+आधुनिक तंत्रज्ञान आधुनिक शेती.
+
 ${businessFooter()}`;
 };
