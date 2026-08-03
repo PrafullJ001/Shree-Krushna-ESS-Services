@@ -33,6 +33,7 @@ export const buildServiceMessage = (farmer, service) => {
 धन्यवाद!
 आधुनिक तंत्रज्ञान आधुनिक शेती.
 
+अधिक माहितीसाठी खालील क्रमांकावर संपर्क करा:
 ${businessFooter()}`;
 };
 
@@ -53,6 +54,7 @@ ${discountAmount > 0 ? `सवलत: ${formatCurrency(discountAmount)}\n` : ""}
 धन्यवाद!
 आधुनिक तंत्रज्ञान आधुनिक शेती.
 
+अधिक माहितीसाठी खालील क्रमांकावर संपर्क करा:
 ${businessFooter()}`;
 };
 
@@ -72,6 +74,7 @@ ${totalPending > 0 ? "कृपया लवकरात लवकर शिल�
 धन्यवाद!
 आधुनिक तंत्रज्ञान आधुनिक शेती.
 
+अधिक माहितीसाठी खालील क्रमांकावर संपर्क करा:
 ${businessFooter()}`;
 };
 
@@ -90,6 +93,8 @@ export const buildBulkPaymentMessage = (farmer, paymentAmount, totals) => {
 
 धन्यवाद!
 आधुनिक तंत्रज्ञान आधुनिक शेती.
+
+अधिक माहितीसाठी खालील क्रमांकावर संपर्क करा:
 ${businessFooter()}`;
 };
 
@@ -107,5 +112,6 @@ export const buildSettleAllMessage = (farmer, totals) => {
 धन्यवाद!
 आधुनिक तंत्रज्ञान आधुनिक शेती.
 
+अधिक माहितीसाठी खालील क्रमांकावर संपर्क करा:
 ${businessFooter()}`;
 };
