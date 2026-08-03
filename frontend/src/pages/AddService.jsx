@@ -1067,7 +1067,7 @@ export default function AddService() {
                 </h2>
 
                 <div className="bg-[#F6F2E9] rounded-xl p-3.5">
-                  <div className="grid grid-cols-2 gap-3">
+                  <div className="grid grid-cols-2 gap-3 items-end">
                     <Field label="In R (Guntha) / आर (गुंठे)">
                       <input
                         type="number"
