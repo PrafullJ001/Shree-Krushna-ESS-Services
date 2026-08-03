@@ -6,8 +6,8 @@ export const searchFarmers = (query) =>
 export const checkDuplicateFarmer = (mobile) =>
   axiosInstance.get(`/farmers/check-duplicate?mobile=${encodeURIComponent(mobile)}`);
 
-export const checkSimilarFarmers = (fullName, village) =>
-  axiosInstance.get(`/farmers/check-similar?fullName=${encodeURIComponent(fullName)}&village=${encodeURIComponent(village)}`);
+export const checkSimilarFarmers = (fullName, mobile) =>
+  axiosInstance.get(`/farmers/check-similar?fullName=${encodeURIComponent(fullName)}&mobile=${encodeURIComponent(mobile)}`);
 
 export const registerFarmer = (farmerData) =>
   axiosInstance.post("/farmers", farmerData);
@@ -20,5 +20,6 @@ export const updateFarmer = (id, farmerData) =>
 
 export const deleteFarmer = (id) =>
   axiosInstance.delete(`/farmers/${id}`);
+
 export const getPublicStatement = (id) =>
   axiosInstance.get(`/public/farmers/${id}/statement`);

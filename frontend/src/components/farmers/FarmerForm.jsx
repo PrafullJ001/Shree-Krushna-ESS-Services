@@ -7,6 +7,29 @@ import {
 } from "../../api/farmerApi";
 import { VILLAGES } from "../../constants/serviceOptions";
 
+// English-only filter for free-text name entry. Blocks Devanagari
+// (Marathi) and any other non-Latin script, but still allows the
+// punctuation real names commonly use (apostrophe, hyphen, dot).
+const ENGLISH_NAME_REGEX = /[^A-Za-z\s.'-]/g;
+
+// Display-only bilingual labels for the Village dropdown. The stored
+// value is always the plain English string from VILLAGES — this map
+// only changes what's shown in the option text.
+const VILLAGE_LABELS = {
+  Pimpri: "Pimpri (पिंपरी)",
+  Raulas: "Raulas (रौळस)",
+  Vadali: "Vadali (वडाळी)",
+  Kundevadi: "Kundevadi (कुंदेवाडी)",
+  Nandurdi: "Nandurdi (नांदुर्डी)",
+  Devpur: "Devpur (देवपूर)",
+  Sukena: "Sukena (सुकेणा)",
+  Pimplas: "Pimplas (पिंपळस)",
+  Dawachwadi: "Dawachwadi (दावचवाडी)",
+  Lonwadi: "Lonwadi (लोणवाडी)",
+  Chandwad: "Chandwad (चांदवड)",
+  Others: "Others (इतर)",
+};
+
 export default function FarmerForm({
   existingFarmer,
   onSuccess,
@@ -37,6 +60,10 @@ export default function FarmerForm({
   const [similarFarmers, setSimilarFarmers] = useState(null);
   const [confirmedProceed, setConfirmedProceed] = useState(false);
 
+  // NEW: inline English-only validation errors
+  const [nameError, setNameError] = useState("");
+  const [mobileError, setMobileError] = useState("");
+
   const handleChange = (e) => {
     setForm({
       ...form,
@@ -47,16 +74,46 @@ export default function FarmerForm({
     setConfirmedProceed(false);
   };
 
-  // Mobile: digits only, maximum 10 digits
+  // Full Name: English letters only (blocks Devanagari/Marathi as you
+  // type), shows an inline error until the offending characters are
+  // removed.
+  const handleNameChange = (e) => {
+    const raw = e.target.value;
+    const filtered = raw.replace(ENGLISH_NAME_REGEX, "");
+
+    setForm((prev) => ({
+      ...prev,
+      fullName: filtered,
+    }));
+
+    setNameError(
+      raw !== filtered
+        ? "Please use English letters only"
+        : ""
+    );
+
+    setSimilarFarmers(null);
+    setConfirmedProceed(false);
+  };
+
+  // Mobile: digits only, maximum 10 digits. Now also shows an inline
+  // error if a non-digit (including Devanagari numerals) was typed.
   const handleMobileChange = (e) => {
-    const value = e.target.value
+    const raw = e.target.value;
+    const filtered = raw
       .replace(/\D/g, "")
       .slice(0, 10);
 
     setForm({
       ...form,
-      mobile: value,
+      mobile: filtered,
     });
+
+    setMobileError(
+      /\D/.test(raw)
+        ? "Please enter numbers only (0-9)"
+        : ""
+    );
 
     setSimilarFarmers(null);
     setConfirmedProceed(false);
@@ -103,7 +160,7 @@ export default function FarmerForm({
 
         if (dupCheck.duplicate) {
           setError(
-            `Farmer already exists : ${dupCheck.farmer.fullName} ${dupCheck.farmer.mobile} (${dupCheck.farmer.farmerCode})`
+            `Farmer already exists: ${dupCheck.farmer.fullName} • ${dupCheck.farmer.mobile} • ${dupCheck.farmer.village} (${dupCheck.farmer.farmerCode})`
           );
 
           setLoading(false);
@@ -172,11 +229,11 @@ export default function FarmerForm({
     setLoading(true);
 
     try {
-      const { data } =
-        await checkSimilarFarmers(
-          form.fullName,
-          form.village
-        );
+const { data } =
+  await checkSimilarFarmers(
+    form.fullName,
+    form.mobile
+  );
 
       if (data.length > 0) {
         setSimilarFarmers(data);
@@ -237,28 +294,34 @@ export default function FarmerForm({
         {/* Full Name */}
         <div>
           <label className={labelClassName}>
-            Full Name
+            Full Name / पूर्ण नाव
           </label>
 
           <input
             name="fullName"
             value={form.fullName}
-            onChange={handleChange}
+            onChange={handleNameChange}
             required
             placeholder="e.g. Ramesh Jadhav"
             className={inputClassName}
           />
 
-          <p className="text-[11px] text-[#1F2A22]/40 mt-1.5 ml-1">
-            Enter first name and last name
-          </p>
+          {nameError ? (
+            <p className="text-[11px] text-[#C24949] font-semibold mt-1.5 ml-1">
+              {nameError}
+            </p>
+          ) : (
+            <p className="text-[11px] text-[#1F2A22]/40 mt-1.5 ml-1">
+              Enter first name and last name (English only)
+            </p>
+          )}
         </div>
 
         {/* Mobile Numbers */}
         <div className="grid grid-cols-2 gap-3">
           <div>
             <label className={labelClassName}>
-              Mobile
+              Mobile / मोबाईल
             </label>
 
             <input
@@ -275,14 +338,20 @@ export default function FarmerForm({
               className={inputClassName}
             />
 
-            <p className="text-[11px] text-[#1F2A22]/40 mt-1.5 ml-1">
-              {form.mobile.length}/10 digits
-            </p>
+            {mobileError ? (
+              <p className="text-[11px] text-[#C24949] font-semibold mt-1.5 ml-1">
+                {mobileError}
+              </p>
+            ) : (
+              <p className="text-[11px] text-[#1F2A22]/40 mt-1.5 ml-1">
+                {form.mobile.length}/10 digits
+              </p>
+            )}
           </div>
 
           <div>
             <label className={labelClassName}>
-              Alt Mobile
+              Alt Mobile / पर्यायी मोबाईल
             </label>
 
             <input
@@ -300,7 +369,7 @@ export default function FarmerForm({
         {/* Village */}
         <div>
           <label className={labelClassName}>
-            Village
+            Village / गाव
           </label>
 
           <select
@@ -318,7 +387,7 @@ export default function FarmerForm({
                 key={village}
                 value={village}
               >
-                {village}
+                {VILLAGE_LABELS[village] || village}
               </option>
             ))}
           </select>
@@ -338,7 +407,7 @@ export default function FarmerForm({
         {/* Notes */}
         <div>
           <label className={labelClassName}>
-            Notes
+            Notes / टीप
           </label>
 
           <textarea
@@ -405,8 +474,7 @@ export default function FarmerForm({
 
               <div>
                 <p className="text-[14px] font-bold text-[#9C5B14] leading-tight mb-1">
-                  Found {similarFarmers.length} similar farmer(s) in{" "}
-                  {form.village}
+                 Found {similarFarmers.length} similar farmer(s) by name or mobile number
                 </p>
 
                 <p className="text-[12px] font-medium text-[#9C5B14]/70 leading-tight">

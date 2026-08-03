@@ -32,6 +32,34 @@ function Field({ label, hint, children }) {
 const inputClass =
   "w-full bg-[#F6F2E9] border border-black/[0.06] rounded-xl px-3.5 py-2.5 text-sm text-[#1F2A22] placeholder-[#A3AFA5] focus:outline-none focus:ring-2 focus:ring-[#4C9A5A]/30 focus:border-[#4C9A5A]/40 transition-all";
 
+// English-only filter for the "Other" free-text inputs. Blocks
+// Devanagari (Marathi) and other non-Latin scripts, but keeps common
+// punctuation used in crop/service names (numbers, hyphen, slash, etc).
+const ENGLISH_TEXT_REGEX = /[^A-Za-z0-9\s.,'\-\/()]/g;
+
+// Display-only bilingual labels for Crop Name and Service Type. The
+// stored value is always the plain English string from CROPS /
+// SERVICE_TYPES — these maps only change what's shown in the option text.
+const CROP_LABELS = {
+  Thompson: "Thompson (थॉम्पसन)",
+  Sudhakar: "Sudhakar (सुधाकर)",
+  Sonaka: "Sonaka (सोनाका)",
+  Anuksha: "Anuksha (अनुक्षा)",
+  "Sharad Black": "Sharad Black (शरद ब्लॅक)",
+  "Black Jumbo": "Black Jumbo (ब्लॅक जंबो)",
+  Other: "Other (इतर)",
+};
+
+const SERVICE_TYPE_LABELS = {
+  "1st dip": "1st dip (1 डिपिंग)",
+  setting: "setting (सेटिंग)",
+  "2nd dip": "2nd dip (2 डिपिंग)",
+  "3rd dip": "3rd dip (3 डिपिंग)",
+  Tochan: "Tochan (टोचण)",
+  Ethrel: "Ethrel (इथ्रेल)",
+  Other: "Other (इतर)",
+};
+
 // Path to your UPI QR code image. Put the actual image file in your
 // frontend's /public folder (e.g. public/upi-qr.png) so this path resolves.
 const UPI_QR_IMAGE = "/upi-qr.png";
@@ -82,12 +110,23 @@ export default function AddService() {
   const [cropOther, setCropOther] =
     useState("");
 
+  // NEW: inline English-only validation error for the crop "Other" field
+  const [cropOtherError, setCropOtherError] =
+    useState("");
+
   const [serviceType, setServiceType] =
     useState("");
 
   const [
     serviceTypeOther,
     setServiceTypeOther,
+  ] = useState("");
+
+  // NEW: inline English-only validation error for the service-type
+  // "Other" field
+  const [
+    serviceTypeOtherError,
+    setServiceTypeOtherError,
   ] = useState("");
 
   const [plotR, setPlotR] =
@@ -191,6 +230,44 @@ export default function AddService() {
     savedService,
     setSavedService,
   ] = useState(null);
+
+  // ---------------------------------------
+  // ENGLISH-ONLY "OTHER" FIELD HANDLERS
+  // ---------------------------------------
+
+  const handleCropOtherChange = (e) => {
+    const raw = e.target.value;
+    const filtered = raw.replace(
+      ENGLISH_TEXT_REGEX,
+      ""
+    );
+
+    setCropOther(filtered);
+
+    setCropOtherError(
+      raw !== filtered
+        ? "Please use English characters only"
+        : ""
+    );
+  };
+
+  const handleServiceTypeOtherChange = (
+    e
+  ) => {
+    const raw = e.target.value;
+    const filtered = raw.replace(
+      ENGLISH_TEXT_REGEX,
+      ""
+    );
+
+    setServiceTypeOther(filtered);
+
+    setServiceTypeOtherError(
+      raw !== filtered
+        ? "Please use English characters only"
+        : ""
+    );
+  };
 
   // ---------------------------------------
   // LIVE PAYMENT / DISCOUNT CALCULATION
@@ -860,7 +937,7 @@ export default function AddService() {
                   </h2>
 
                   <Field
-                    label="Staff Member"
+                    label="Staff Member / कर्मचारी"
                     hint="Required — select which staff login this service should be credited to"
                   >
                     <select
@@ -890,7 +967,7 @@ export default function AddService() {
                 </h2>
 
                 <Field
-                  label="Village"
+                  label="Village / गाव"
                   hint="From this farmer's registered profile"
                 >
                   <div
@@ -901,7 +978,7 @@ export default function AddService() {
                   </div>
                 </Field>
 
-                <Field label="Crop Name">
+                <Field label="Crop Name / पीक">
                   <select
                     value={
                       cropName
@@ -932,7 +1009,7 @@ export default function AddService() {
                             c
                           }
                         >
-                          {c}
+                          {CROP_LABELS[c] || c}
                         </option>
                       )
                     )}
@@ -940,26 +1017,28 @@ export default function AddService() {
 
                   {cropName ===
                     "Other" && (
-                    <input
-                      value={
-                        cropOther
-                      }
-                      onChange={(
-                        e
-                      ) =>
-                        setCropOther(
-                          e
-                            .target
-                            .value
-                        )
-                      }
-                      placeholder="Type crop name"
-                      className={`${inputClass} mt-2`}
-                    />
+                    <>
+                      <input
+                        value={
+                          cropOther
+                        }
+                        onChange={
+                          handleCropOtherChange
+                        }
+                        placeholder="Type crop name"
+                        className={`${inputClass} mt-2`}
+                      />
+
+                      {cropOtherError && (
+                        <p className="text-[11px] text-[#C24949] font-semibold mt-1.5">
+                          {cropOtherError}
+                        </p>
+                      )}
+                    </>
                   )}
                 </Field>
 
-                <Field label="Plot Name (optional)">
+                <Field label="Plot Name (optional) / प्लॉट नाव (ऐच्छिक)">
                   <input
                     value={
                       plotName
@@ -989,7 +1068,7 @@ export default function AddService() {
 
                 <div className="bg-[#F6F2E9] rounded-xl p-3.5">
                   <div className="grid grid-cols-2 gap-3">
-                    <Field label="In R (Guntha)">
+                    <Field label="In R (Guntha) / आर (गुंठे)">
                       <input
                         type="number"
                         inputMode="decimal"
@@ -1009,7 +1088,7 @@ export default function AddService() {
                       />
                     </Field>
 
-                    <Field label="In Acres">
+                    <Field label="In Acres / एकर">
                       <input
                         type="number"
                         inputMode="decimal"
@@ -1038,7 +1117,7 @@ export default function AddService() {
                   </p>
                 </div>
 
-                <Field label="Service Date">
+                <Field label="Service Date / सेवा तारीख">
                   <input
                     type="date"
                     value={
@@ -1068,7 +1147,7 @@ export default function AddService() {
 
                 <div className="bg-[#F6F2E9] rounded-xl p-3.5">
                   <span className="text-xs font-semibold text-[#5B6B5E] uppercase tracking-wide">
-                    Bill No. available?
+                    Bill No. available? / बिल क्रमांक आहे का?
                   </span>
 
                   <div className="flex gap-2 mt-2">
@@ -1104,7 +1183,7 @@ export default function AddService() {
 
                   {hasBillNo ? (
                     <div className="mt-3">
-                      <Field label="Bill No.">
+                      <Field label="Bill No. / बिल क्रमांक">
                         <input
                           type="text"
                           value={
@@ -1134,7 +1213,7 @@ export default function AddService() {
                   )}
                 </div>
 
-                <Field label="Service Type">
+                <Field label="Service Type / सेवा प्रकार">
                   <select
                     value={
                       serviceType
@@ -1166,7 +1245,7 @@ export default function AddService() {
                             s
                           }
                         >
-                          {s}
+                          {SERVICE_TYPE_LABELS[s] || s}
                         </option>
                       )
                     )}
@@ -1174,22 +1253,24 @@ export default function AddService() {
 
                   {serviceType ===
                     "Other" && (
-                    <input
-                      value={
-                        serviceTypeOther
-                      }
-                      onChange={(
-                        e
-                      ) =>
-                        setServiceTypeOther(
-                          e
-                            .target
-                            .value
-                        )
-                      }
-                      placeholder="Type service type"
-                      className={`${inputClass} mt-2`}
-                    />
+                    <>
+                      <input
+                        value={
+                          serviceTypeOther
+                        }
+                        onChange={
+                          handleServiceTypeOtherChange
+                        }
+                        placeholder="Type service type"
+                        className={`${inputClass} mt-2`}
+                      />
+
+                      {serviceTypeOtherError && (
+                        <p className="text-[11px] text-[#C24949] font-semibold mt-1.5">
+                          {serviceTypeOtherError}
+                        </p>
+                      )}
+                    </>
                   )}
                 </Field>
 
@@ -1198,7 +1279,7 @@ export default function AddService() {
                 <div className="bg-[#F6F2E9] rounded-xl p-3.5">
                   <div className="flex justify-between items-center">
                     <span className="text-xs font-semibold text-[#5B6B5E] uppercase tracking-wide">
-                      Rate / Acre
+                      Rate / Acre / दर प्रति एकर
                     </span>
 
                     {isAdmin &&
@@ -1278,7 +1359,7 @@ export default function AddService() {
                 </div>
 
                 <Field
-                  label="Total Bill"
+                  label="Total Bill / एकूण बिल"
                   hint="Auto-calculated from exact plot area × rate — edit if needed"
                 >
                   <input
@@ -1311,7 +1392,7 @@ export default function AddService() {
 
                 <div className="bg-[#F6F2E9] rounded-xl p-3.5">
                   <span className="text-xs font-semibold text-[#5B6B5E] uppercase tracking-wide">
-                    Bill Paid?
+                    Bill Paid? / बिल भरले का?
                   </span>
 
                   <div className="flex gap-2 mt-2">
@@ -1369,7 +1450,7 @@ export default function AddService() {
 
                       {/* PAYMENT AMOUNT FIRST */}
 
-                      <Field label="Amount Paid">
+                      <Field label="Amount Paid / भरलेली रक्कम">
                         <input
                           type="number"
                           inputMode="decimal"
@@ -1419,7 +1500,7 @@ export default function AddService() {
                       <div className="bg-white border border-black/[0.06] rounded-xl p-3.5 flex justify-between items-center">
                         <div>
                           <p className="text-[10px] font-bold text-[#5B6B5E] uppercase">
-                            Bill Amount
+                            Bill Amount / बिल रक्कम
                           </p>
 
                           <p className="font-bold text-[#1F2A22]">
@@ -1430,7 +1511,7 @@ export default function AddService() {
 
                         <div className="text-right">
                           <p className="text-[10px] font-bold text-[#C24949] uppercase">
-                            Pending
+                            Pending / शिल्लक
                           </p>
 
                           <p className="font-black text-[#C24949] text-lg">
@@ -1444,7 +1525,7 @@ export default function AddService() {
 
                       {/* PAYMENT MODE */}
 
-                      <Field label="Payment Mode">
+                      <Field label="Payment Mode / पैसे भरण्याची पद्धत">
                         <select
                           value={
                             paymentMode
@@ -1508,7 +1589,7 @@ export default function AddService() {
                       <div className="border-t border-black/[0.06] pt-4">
                         <span className="text-xs font-semibold text-[#5B6B5E] uppercase tracking-wide">
                           Apply
-                          Discount?
+                          Discount? / सवलत लागू करायची का?
                         </span>
 
                         <div className="flex gap-2 mt-2">
@@ -1555,7 +1636,7 @@ export default function AddService() {
 
                         {applyDiscount && (
                           <div className="space-y-3 mt-4">
-                            <Field label="Discount Amount">
+                            <Field label="Discount Amount / सवलत रक्कम">
                               <input
                                 type="number"
                                 inputMode="decimal"
@@ -1576,7 +1657,7 @@ export default function AddService() {
                               />
                             </Field>
 
-                            <Field label="Discount Reason (optional)">
+                            <Field label="Discount Reason (optional) / सवलतीचे कारण (ऐच्छिक)">
                               <input
                                 value={
                                   discountReason
@@ -1598,7 +1679,7 @@ export default function AddService() {
                             <div className="bg-[#FEF3C7]/60 rounded-xl p-3.5 flex justify-between items-center">
                               <span className="text-xs font-bold text-[#D97706]">
                                 Final
-                                Pending
+                                Pending / अंतिम शिल्लक
                               </span>
 
                               <span className="font-black text-[#D97706] text-lg">
@@ -1638,7 +1719,7 @@ export default function AddService() {
                   Extras
                 </h2>
 
-                <Field label="Bill / Receipt Photo (optional)">
+                <Field label="Bill / Receipt Photo (optional) / बिल / पावतीचा फोटो (ऐच्छिक)">
                   <input
                     type="file"
                     accept="image/*"
@@ -1656,7 +1737,7 @@ export default function AddService() {
                   />
                 </Field>
 
-                <Field label="Notes">
+                <Field label="Notes / टीप">
                   <textarea
                     value={
                       notes
@@ -1754,8 +1835,10 @@ export default function AddService() {
       setVillage("");
       setCropName("");
       setCropOther("");
+      setCropOtherError("");
       setServiceType("");
       setServiceTypeOther("");
+      setServiceTypeOtherError("");
       setPlotR("");
       setAcres("");
       setHasBillNo(true);

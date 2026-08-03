@@ -310,8 +310,8 @@ exports.deleteFarmer = async (req, res) => {
   }
 };
 
-// @desc Check for farmers with similar name in the same village
-// @route GET /api/farmers/check-similar?fullName=&village=
+// @desc Check for farmers with similar name or same mobile number, across all farmers
+// @route GET /api/farmers/check-similar?fullName=&mobile=
 exports.checkSimilarFarmers = async (
   req,
   res
@@ -319,22 +319,32 @@ exports.checkSimilarFarmers = async (
   try {
     const {
       fullName,
-      village,
+      mobile,
     } = req.query;
 
-    if (!fullName || !village) {
+    if (!fullName && !mobile) {
       return res.json([]);
     }
 
+    const orConditions = [];
+
+    if (fullName && fullName.trim()) {
+      orConditions.push({
+        fullName: {
+          $regex: fullName.trim(),
+          $options: "i",
+        },
+      });
+    }
+
+    if (mobile && mobile.trim()) {
+      orConditions.push({
+        mobile: mobile.trim(),
+      });
+    }
+
     const similar = await Farmer.find({
-      fullName: {
-        $regex: fullName.trim(),
-        $options: "i",
-      },
-      village: {
-        $regex: village.trim(),
-        $options: "i",
-      },
+      $or: orConditions,
     }).select(
       "farmerCode fullName mobile village"
     );
@@ -348,24 +358,6 @@ exports.checkSimilarFarmers = async (
 };
 
 // PUBLIC — no auth. Used by the statement link sent in reminder messages.
-exports.getPublicStatement = async (req, res) => {
-  try {
-    const farmer = await Farmer.findById(req.params.id);
-
-    if (!farmer) {
-      return res.status(404).json({ message: "Farmer not found" });
-    }
-
-    const services = await ServiceRecord.find({ farmer: farmer._id }).sort({
-      serviceDate: -1,
-    });
-
-    res.json({ farmer, services });
-  } catch (err) {
-    res.status(500).json({ message: err.message });
-  }
-};
-
 exports.getPublicStatement = async (req, res) => {
   try {
     const farmer = await Farmer.findById(req.params.id);
