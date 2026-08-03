@@ -1145,6 +1145,67 @@ export default function AddService() {
                   Service Details
                 </h2>
 
+                <Field label="Service Type / सेवा प्रकार">
+                  <select
+                    value={
+                      serviceType
+                    }
+                    onChange={(
+                      e
+                    ) =>
+                      setServiceType(
+                        e.target
+                          .value
+                      )
+                    }
+                    className={
+                      inputClass
+                    }
+                  >
+                    <option value="">
+                      Select service
+                      type
+                    </option>
+
+                    {SERVICE_TYPES.map(
+                      (s) => (
+                        <option
+                          key={
+                            s
+                          }
+                          value={
+                            s
+                          }
+                        >
+                          {SERVICE_TYPE_LABELS[s] || s}
+                        </option>
+                      )
+                    )}
+                  </select>
+
+                  {serviceType ===
+                    "Other" && (
+                    <>
+                      <input
+                        value={
+                          serviceTypeOther
+                        }
+                        onChange={
+                          handleServiceTypeOtherChange
+                        }
+                        placeholder="Type service type"
+                        className={`${inputClass} mt-2`}
+                      />
+
+                      {serviceTypeOtherError && (
+                        <p className="text-[11px] text-[#C24949] font-semibold mt-1.5">
+                          {serviceTypeOtherError}
+                        </p>
+                      )}
+                    </>
+                  )}
+                </Field>
+
                 <div className="bg-[#F6F2E9] rounded-xl p-3.5">
                   <span className="text-xs font-semibold text-[#5B6B5E] uppercase tracking-wide">
                     Bill No. available? / बिल क्रमांक आहे का?
@@ -1212,67 +1273,6 @@ export default function AddService() {
                     </div>
                   )}
                 </div>
-
-                <Field label="Service Type / सेवा प्रकार">
-                  <select
-                    value={
-                      serviceType
-                    }
-                    onChange={(
-                      e
-                    ) =>
-                      setServiceType(
-                        e.target
-                          .value
-                      )
-                    }
-                    className={
-                      inputClass
-                    }
-                  >
-                    <option value="">
-                      Select service
-                      type
-                    </option>
-
-                    {SERVICE_TYPES.map(
-                      (s) => (
-                        <option
-                          key={
-                            s
-                          }
-                          value={
-                            s
-                          }
-                        >
-                          {SERVICE_TYPE_LABELS[s] || s}
-                        </option>
-                      )
-                    )}
-                  </select>
-
-                  {serviceType ===
-                    "Other" && (
-                    <>
-                      <input
-                        value={
-                          serviceTypeOther
-                        }
-                        onChange={
-                          handleServiceTypeOtherChange
-                        }
-                        placeholder="Type service type"
-                        className={`${inputClass} mt-2`}
-                      />
-
-                      {serviceTypeOtherError && (
-                        <p className="text-[11px] text-[#C24949] font-semibold mt-1.5">
-                          {serviceTypeOtherError}
-                        </p>
-                      )}
-                    </>
-                  )}
-                </Field>
 
                 {/* RATE */}
 
