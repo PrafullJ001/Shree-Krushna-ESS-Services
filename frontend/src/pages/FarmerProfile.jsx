@@ -26,6 +26,11 @@ export default function FarmerProfile() {
   const [showSettleModal, setShowSettleModal] = useState(false);
   const [showBulkModal, setShowBulkModal] = useState(false);
 
+  // Tracks which service card was just changed (payment, edit, bill no.
+  // added) so it can be briefly highlighted and scrolled into view —
+  // purely visual, doesn't affect data or ordering.
+  const [highlightedServiceId, setHighlightedServiceId] = useState(null);
+
   // Acres date-range filter — only affects the Acres Summary numbers.
   // Defaults to unfiltered (shows totals across ALL services). Only
   // switches to a filtered view once the user explicitly applies a range.
@@ -57,12 +62,32 @@ export default function FarmerProfile() {
     loadData();
   }, [id]);
 
+  // Updates service(s) in place — no reordering here. Display order is
+  // controlled purely by serviceDate (see sortedServices below), so an
+  // action like adding a bill no., editing, or collecting payment never
+  // moves a card. It only moves if its actual service date is the newest.
+  // The updated card is also briefly highlighted and scrolled into view
+  // so there's no need to hunt for it in the list.
+  const updateServicesInPlace = (updated) => {
+    const updatedList = Array.isArray(updated) ? updated : [updated];
+    const updatedById = new Map(updatedList.map((u) => [u._id, u]));
+    setServices((prev) => prev.map((s) => updatedById.get(s._id) || s));
+
+    if (updatedList.length > 0) {
+      const targetId = updatedList[0]._id;
+      setHighlightedServiceId(targetId);
+      setTimeout(() => {
+        setHighlightedServiceId((current) => (current === targetId ? null : current));
+      }, 2000);
+    }
+  };
+
   const handlePaymentRecorded = (updatedService) => {
-    setServices((prev) => prev.map((s) => (s._id === updatedService._id ? updatedService : s)));
+    updateServicesInPlace(updatedService);
   };
 
   const handleServiceUpdated = (updatedService) => {
-    setServices((prev) => prev.map((s) => (s._id === updatedService._id ? updatedService : s)));
+    updateServicesInPlace(updatedService);
   };
 
   const handleServiceDeleted = (deletedId) => {
@@ -81,22 +106,12 @@ export default function FarmerProfile() {
   };
 
   const handleSettledAll = (updatedServices) => {
-    setServices((prev) =>
-      prev.map((s) => {
-        const updated = updatedServices.find((u) => u._id === s._id);
-        return updated || s;
-      })
-    );
+    updateServicesInPlace(updatedServices);
     setShowSettleModal(false);
   };
 
   const handleBulkPaid = (updatedServices) => {
-    setServices((prev) =>
-      prev.map((s) => {
-        const updated = updatedServices.find((u) => u._id === s._id);
-        return updated || s;
-      })
-    );
+    updateServicesInPlace(updatedServices);
   };
 
   const handleApplyAcresFilter = () => {
@@ -213,6 +228,15 @@ export default function FarmerProfile() {
     const unpaidRatio = Math.min(pending / bill, 1);
     return sum + acres * unpaidRatio;
   }, 0);
+
+  // Display order for Service History — sorted purely by serviceDate,
+  // newest first / oldest last. This is recalculated from `services`
+  // every render, so it stays correct no matter what action (add bill no,
+  // edit, payment, delete) triggered the update — the order only changes
+  // when a service's actual date changes or a new one is added.
+  const sortedServices = [...services].sort(
+    (a, b) => new Date(b.serviceDate) - new Date(a.serviceDate)
+  );
 
   return (
     <div className="min-h-screen bg-[#F6F2E9] pb-24 font-sans selection:bg-[#4C9A5A]/20">
@@ -513,11 +537,12 @@ export default function FarmerProfile() {
 
           <div className="bg-white rounded-[1.5rem] shadow-sm border border-black/[0.04] overflow-hidden">
             <FarmerHistoryTable
-              services={services}
+              services={sortedServices}
               farmer={farmer}
               onPaymentRecorded={handlePaymentRecorded}
               onServiceUpdated={handleServiceUpdated}
               onServiceDeleted={handleServiceDeleted}
+              highlightedServiceId={highlightedServiceId}
             />
           </div>
         </div>

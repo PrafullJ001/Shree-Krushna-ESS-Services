@@ -1,4 +1,4 @@
-﻿import { useState } from "react";
+﻿import { useState, useEffect, useRef } from "react";
 import { formatCurrency } from "../../utils/formatCurrency";
 import { formatDate } from "../../utils/formatDate";
 import PaymentForm from "./PaymentForm";
@@ -15,6 +15,7 @@ export default function FarmerHistoryTable({
   onPaymentRecorded,
   onServiceUpdated,
   onServiceDeleted,
+  highlightedServiceId,
 }) {
   const { user } = useAuth();
   const isAdmin = user?.role === "admin";
@@ -31,6 +32,18 @@ export default function FarmerHistoryTable({
   const [billNoDraft, setBillNoDraft] = useState("");
   const [billNoError, setBillNoError] = useState(null);
   const [savingBillNo, setSavingBillNo] = useState(false);
+
+  // Refs to each service card, used only to scroll the recently-updated
+  // card into view — no other logic touched.
+  const cardRefs = useRef({});
+
+  useEffect(() => {
+    if (!highlightedServiceId) return;
+    const node = cardRefs.current[highlightedServiceId];
+    if (node) {
+      node.scrollIntoView({ behavior: "smooth", block: "center" });
+    }
+  }, [highlightedServiceId]);
 
   const startAddBillNo = (service) => {
     setBillNoEditingId(service._id);
@@ -63,9 +76,19 @@ export default function FarmerHistoryTable({
       fd.append("totalBill", service.totalBill || 0);
       if (service.notes) fd.append("notes", service.notes);
 
-      await updateService(service._id, fd);
-      // Force a full page refresh so every screen reflects the database.
-      window.location.reload();
+      const res = await updateService(service._id, fd);
+
+      // No more full page reload — just update this one service in place
+      // (small inline spinner only, shown on the Save button below) and
+      // let the parent move it to the top of the list, same as any other
+      // edit/payment update.
+      setBillNoEditingId(null);
+      setBillNoDraft("");
+      setSavingBillNo(false);
+
+      if (onServiceUpdated) {
+        onServiceUpdated(res.data.service);
+      }
     } catch (err) {
       setBillNoError(err.response?.data?.message || "Failed to save bill number");
       setSavingBillNo(false);
@@ -84,9 +107,14 @@ export default function FarmerHistoryTable({
 
     try {
       await deleteService(deletingService._id);
-      // Force a full page refresh so the list, bill totals, and
-      // history everywhere reflect exactly what's in the database.
-      window.location.reload();
+      // No more full page reload — remove it from the list in place.
+      // Totals/summary on the parent page recompute automatically since
+      // they're derived from the services array.
+      if (onServiceDeleted) {
+        onServiceDeleted(deletingService._id);
+      }
+      setDeletingService(null);
+      setDeleteLoading(false);
     } catch (err) {
       setDeleteError(err.response?.data?.message || "Failed to delete service");
       setDeletingService(null);
@@ -170,7 +198,14 @@ export default function FarmerHistoryTable({
         return (
           <div
             key={s._id}
-            className="bg-white rounded-[1.5rem] shadow-sm border border-black/[0.04] overflow-hidden animate-in slide-in-from-bottom-2 fade-in"
+            ref={(el) => {
+              cardRefs.current[s._id] = el;
+            }}
+            className={`bg-white rounded-[1.5rem] shadow-sm overflow-hidden animate-in slide-in-from-bottom-2 fade-in transition-all duration-500 ${
+              highlightedServiceId === s._id
+                ? "border-2 border-[#4C9A5A] ring-4 ring-[#4C9A5A]/15"
+                : "border border-black/[0.04]"
+            }`}
             style={{ animationDelay: `${index * 50}ms`, animationFillMode: "both" }}
           >
             {/* Top Header */}
@@ -245,9 +280,19 @@ export default function FarmerHistoryTable({
                       type="button"
                       onClick={() => handleSaveBillNo(s)}
                       disabled={savingBillNo}
-                      className="text-[11px] font-bold text-white bg-[#4C9A5A] rounded-lg px-2 py-1 disabled:opacity-60"
+                      className="flex items-center gap-1 text-[11px] font-bold text-white bg-[#4C9A5A] rounded-lg px-2 py-1 disabled:opacity-70"
                     >
-                      {savingBillNo ? "Saving..." : "Save"}
+                      {savingBillNo ? (
+                        <>
+                          <svg viewBox="0 0 24 24" className="h-3 w-3 animate-spin" fill="none">
+                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                            <path className="opacity-90" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                          </svg>
+                          Saving
+                        </>
+                      ) : (
+                        "Save"
+                      )}
                     </button>
                     <button
                       type="button"
